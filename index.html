@@ -1149,15 +1149,30 @@
 
         // Timer functionality
         let timerInterval;
-        let timeRemaining = 25 * 60; // 25 minutes in seconds
+        let totalTime = 25 * 60; // default timer length in seconds
+        let timeRemaining = totalTime;
         let isRunning = false;
-        const totalTime = 25 * 60;
 
         const timerDisplay = document.getElementById('timerDisplay');
         const startBtn = document.getElementById('startTimer');
         const pauseBtn = document.getElementById('pauseTimer');
         const resetBtn = document.getElementById('resetTimer');
         const progressBar = document.getElementById('timerProgressBar');
+
+        // Allow editing timer duration when not running
+        timerDisplay.addEventListener('click', () => {
+            if (isRunning) return;
+            const input = prompt('Set timer minutes:', Math.floor(totalTime / 60));
+            if (input !== null) {
+                const minutes = parseInt(input);
+                if (!isNaN(minutes) && minutes > 0) {
+                    totalTime = minutes * 60;
+                    timeRemaining = totalTime;
+                    progressBar.style.width = '0%';
+                    updateTimerDisplay();
+                }
+            }
+        });
 
         function updateTimerDisplay() {
             const minutes = Math.floor(timeRemaining / 60);
@@ -1204,7 +1219,7 @@
         function resetTimer() {
             clearInterval(timerInterval);
             isRunning = false;
-            timeRemaining = 25 * 60;
+            timeRemaining = totalTime;
             updateTimerDisplay();
             startBtn.disabled = false;
             pauseBtn.disabled = true;
@@ -1477,6 +1492,7 @@
             pinnedTaskIndex = null;
             isTimerMinimized = false;
             loadTasks();
+            updateFocusTimerVisibility();
         }
 
         function minimizeTaskTimer() {
@@ -1493,33 +1509,51 @@
             updateFloatingMsg();
         }
 
-        function updateFloatingMsg() {
-            const msg = document.getElementById('floatingMsg');
-            if ((taskTimerInterval || isTaskPaused) && !isTimerMinimized) {
-                msg.style.display = 'block';
+       function updateFloatingMsg() {
+           const msg = document.getElementById('floatingMsg');
+           if ((taskTimerInterval || isTaskPaused) && !isTimerMinimized) {
+               msg.style.display = 'block';
+           } else {
+               msg.style.display = 'none';
+           }
+            updateFocusTimerVisibility();
+       }
+
+        function updateFocusTimerVisibility() {
+            const focusDisplay = document.getElementById('timerDisplay');
+            const focusControls = document.querySelector('.timer-controls');
+            const focusProgress = document.querySelector('.timer-progress');
+            if (taskTimerInterval || isTaskPaused) {
+                focusDisplay.style.display = 'none';
+                focusControls.style.display = 'none';
+                focusProgress.style.display = 'none';
             } else {
-                msg.style.display = 'none';
+                focusDisplay.style.display = 'block';
+                focusControls.style.display = 'flex';
+                focusProgress.style.display = 'block';
             }
         }
 
-        function pauseTaskTimer() {
-            if (taskTimerInterval) {
-                clearInterval(taskTimerInterval);
-                taskTimerInterval = null;
-                isTaskPaused = true;
-                document.getElementById('minPauseBtn').style.display = 'none';
-                document.getElementById('minResumeBtn').style.display = 'inline';
-            }
-        }
+       function pauseTaskTimer() {
+           if (taskTimerInterval) {
+               clearInterval(taskTimerInterval);
+               taskTimerInterval = null;
+               isTaskPaused = true;
+               document.getElementById('minPauseBtn').style.display = 'none';
+               document.getElementById('minResumeBtn').style.display = 'inline';
+                updateFloatingMsg();
+           }
+       }
 
-        function resumeTaskTimer() {
-            if (isTaskPaused) {
-                startTaskInterval();
-                isTaskPaused = false;
-                document.getElementById('minPauseBtn').style.display = 'inline';
-                document.getElementById('minResumeBtn').style.display = 'none';
-            }
-        }
+       function resumeTaskTimer() {
+           if (isTaskPaused) {
+               startTaskInterval();
+               isTaskPaused = false;
+               document.getElementById('minPauseBtn').style.display = 'inline';
+               document.getElementById('minResumeBtn').style.display = 'none';
+                updateFloatingMsg();
+           }
+       }
 
         function cancelTaskTimer() {
             if (currentTaskIndex === null) return;
@@ -1542,6 +1576,7 @@
             loadTasks();
             loadTodaysMood();
             updateTimerDisplay();
+            updateFocusTimerVisibility();
             loadNotes();
         };
     </script>
