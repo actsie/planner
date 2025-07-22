@@ -122,6 +122,15 @@
             padding: 0.75rem;
             border-bottom: 1px solid #f5f5f5;
             transition: background 0.2s;
+            position: relative;
+        }
+
+        .task.active-task {
+            flex-direction: column;
+            align-items: flex-start;
+            background: #DDEDE2;
+            border-left: 4px solid #B5CDBA;
+            box-shadow: 0 0 6px rgba(180, 200, 170, 0.4);
         }
 
         .task:hover {
@@ -173,9 +182,17 @@
         }
 
         .task-time-info {
-            font-size: 0.75rem;
-            color: #718096;
+            font-size: 11px;
+            color: #999;
             margin-left: 0.5rem;
+        }
+
+        .active-tag {
+            background: #DDEDE2;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 4px;
         }
 
         /* Mood Tracker Styles */
@@ -886,33 +903,42 @@
         let taskOriginalDuration = 0;
         let isTaskPaused = false;
         let isTimerMinimized = false;
+        let pinnedTaskIndex = null;
 
         function loadTasks() {
             taskList.innerHTML = '';
-            
-            // Active tasks
-            const activeTasks = tasks.filter(task => !task.completed);
-            activeTasks.forEach((task, index) => {
-                const actualIndex = tasks.indexOf(task);
+
+            let activeIndices = tasks.map((t, i) => i).filter(i => !tasks[i].completed);
+            if (pinnedTaskIndex !== null && activeIndices.includes(pinnedTaskIndex)) {
+                activeIndices = [pinnedTaskIndex, ...activeIndices.filter(i => i !== pinnedTaskIndex)];
+            }
+
+            activeIndices.forEach(idx => {
+                const task = tasks[idx];
                 const li = document.createElement('li');
                 li.classList.add('task');
 
+                const isActive = idx === pinnedTaskIndex && (taskTimerInterval || isTaskPaused);
+                if (isActive) li.classList.add('active-task');
+
                 const timeInfo = task.totalTime ? `Worked ${Math.round(task.totalTime / 60)} min` : '';
                 const showInfo = task.totalTime || (task.sessions && task.sessions.length);
-                const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${actualIndex})'>i</button>` : '';
+                const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${idx})'>i</button>` : '';
+                const activeTag = isActive ? `<div class='active-tag'>⏱ Active</div>` : '';
 
                 li.innerHTML = `
+                    ${activeTag}
                     <div class='task-header'>
-                        <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
+                        <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
                         <span>${task.task}</span>${infoIcon}
                         <span class='task-time-info'>${timeInfo}</span>
-                        <button class='timer-task' onclick='startTaskTimer(${actualIndex})'>⏱️</button>
-                        <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                        <button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>
+                        <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
                     </div>
                 `;
 
-            taskList.appendChild(li);
-        });
+                taskList.appendChild(li);
+            });
             
             // Done tasks
             const doneTasks = tasks.filter(task => task.completed);
@@ -1330,6 +1356,7 @@
             taskTimeRemaining = taskOriginalDuration;
             isTaskPaused = false;
             isTimerMinimized = false;
+            pinnedTaskIndex = currentTaskIndex;
 
             const display = document.getElementById('taskTimerDisplay');
             const titleEl = document.getElementById('taskTimerTitle');
@@ -1347,6 +1374,7 @@
             startTaskInterval();
             updateTaskTimerDisplay();
             updateFloatingMsg();
+            loadTasks();
         }
 
         function startTaskInterval() {
@@ -1387,7 +1415,9 @@
             audio.volume = 0.3;
             audio.play().catch(() => {});
             
+            pinnedTaskIndex = null;
             document.getElementById('completionModal').classList.add('active');
+            loadTasks();
         }
 
         function logCurrentSession() {
@@ -1409,7 +1439,6 @@
             tasks[currentTaskIndex].completed = true;
             localStorage.setItem('tasks', JSON.stringify(tasks));
             closeCompletionModal();
-            loadTasks();
         }
 
         function addMoreTime() {
@@ -1422,7 +1451,6 @@
             if (currentTaskIndex === null) return;
             logCurrentSession();
             closeCompletionModal();
-            loadTasks();
         }
 
         function closeCompletionModal() {
@@ -1433,7 +1461,9 @@
             clearInterval(taskTimerInterval);
             taskTimerInterval = null;
             currentTaskIndex = null;
+            pinnedTaskIndex = null;
             isTimerMinimized = false;
+            loadTasks();
         }
 
         function minimizeTaskTimer() {
@@ -1482,7 +1512,6 @@
             if (currentTaskIndex === null) return;
             logCurrentSession();
             closeCompletionModal();
-            loadTasks();
         }
 
         function addMoreTimeDuringRun() {
