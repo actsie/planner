@@ -1399,7 +1399,9 @@
             if (range.collapsed || !noteContent.contains(sel.anchorNode)) return;
 
             if (tag === 'mark') {
-                document.execCommand('hiliteColor', false, 'yellow');
+                toggleWrapper(range, 'mark');
+            } else if (tag === 'del') {
+                toggleWrapper(range, 'del');
             } else {
                 document.execCommand(commandMap[tag]);
             }
