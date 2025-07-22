@@ -1399,13 +1399,11 @@
             if (range.collapsed || !noteContent.contains(sel.anchorNode)) return;
 
             if (tag === 'mark') {
-                toggleWrapper(range, 'mark');
-            } else if (tag === 'del') {
-                toggleWrapper(range, 'del');
+                document.execCommand('hiliteColor', false, 'yellow');
             } else {
                 document.execCommand(commandMap[tag]);
-                normalizeFormatting();
             }
+            normalizeFormatting();
 
             hideFormatToolbar();
             autoSaveNote();
