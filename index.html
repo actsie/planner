@@ -650,19 +650,46 @@
             gap: 0.25rem;
         }
 
-        .toggle-sessions {
+        .task-info-icon {
             background: none;
-            border: none;
+            border: 1px solid #e8dfd6;
             color: #a0aec0;
+            border-radius: 50%;
+            width: 1rem;
+            height: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            margin-left: 0.25rem;
             cursor: pointer;
-            font-size: 0.9rem;
         }
 
-        .session-details {
+        .task-info-card {
+            position: absolute;
+            background: #f8f1e8;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 0.5rem 0.75rem;
             font-size: 0.8rem;
-            color: #718096;
-            margin-left: 1.5rem;
-            margin-top: 0.25rem;
+            color: #4a5568;
+            display: none;
+            z-index: 1000;
+        }
+
+        .task-info-card::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 10px;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 6px solid #f8f1e8;
+        }
+
+        .task-info-card .info-task-name {
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
         }
 
         /* Done List */
@@ -703,6 +730,7 @@
                     <button id="addTask">Add</button>
                 </div>
                 <ul id="taskList"></ul>
+                <div id="taskInfoCard" class="task-info-card"></div>
             </div>
 
             <div class="card">
@@ -870,31 +898,18 @@
                 li.classList.add('task');
 
                 const timeInfo = task.totalTime ? `Worked ${Math.round(task.totalTime / 60)} min` : '';
-                const toggleBtn = task.sessions && task.sessions.length ? `<button class='toggle-sessions' onclick='toggleSessions(${actualIndex}, this)'>▼</button>` : '';
+                const showInfo = task.totalTime || (task.sessions && task.sessions.length);
+                const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${actualIndex})'>i</button>` : '';
 
                 li.innerHTML = `
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                        <span>${task.task}</span>
+                        <span>${task.task}</span>${infoIcon}
                         <span class='task-time-info'>${timeInfo}</span>
-                        ${toggleBtn}
                         <button class='timer-task' onclick='startTaskTimer(${actualIndex})'>⏱️</button>
                         <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
                     </div>
                 `;
-
-                if (task.sessions && task.sessions.length) {
-                    const details = document.createElement('div');
-                    details.classList.add('session-details');
-                    details.style.display = 'none';
-                    task.sessions.forEach(s => {
-                        const d = document.createElement('div');
-                        const mins = Math.round(s.duration);
-                        d.textContent = `• ${mins} min at ${new Date(s.completedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
-                        details.appendChild(d);
-                    });
-                    li.appendChild(details);
-                }
 
             taskList.appendChild(li);
         });
@@ -910,11 +925,13 @@
                     const actualIndex = tasks.indexOf(task);
                     const li = document.createElement('li');
                     li.classList.add('task', 'done-task');
-                    
+
                     const timeInfo = task.totalTime ? ` (Worked ${Math.round(task.totalTime / 60)} mins)` : '';
+                    const showInfo = task.totalTime || (task.sessions && task.sessions.length);
+                    const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${actualIndex})'>i</button>` : '';
                     li.innerHTML = `
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                        <span>${task.task}</span>
+                        <span>${task.task}</span>${infoIcon}
                         <span class='task-time-info'>${timeInfo}</span>
                         <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
                     `;
@@ -925,15 +942,33 @@
             }
         }
 
-        function toggleSessions(index, btn) {
-            const li = btn.closest('li');
-            const details = li.querySelector('.session-details');
-            if (details) {
-                const visible = details.style.display !== 'none';
-                details.style.display = visible ? 'none' : 'block';
-                btn.textContent = visible ? '▼' : '▲';
-            }
+        function showTaskInfo(event, index) {
+            event.stopPropagation();
+            const card = document.getElementById('taskInfoCard');
+            const task = tasks[index];
+            const total = Math.round((task.totalTime || 0) / 60);
+            const last = task.sessions && task.sessions.length ? Math.round(task.sessions[task.sessions.length - 1].duration) : null;
+            card.innerHTML = `
+                <div class='info-task-name'>${task.task}</div>
+                <div>Worked: ${total} min</div>
+                ${last ? `<div>Last session: ${last} min</div>` : ''}
+                <div>${task.completed ? 'Completed' : 'Not done yet'}</div>
+            `;
+            card.style.display = 'block';
+            card.style.top = (event.target.getBoundingClientRect().bottom + window.scrollY + 6) + 'px';
+            card.style.left = (event.target.getBoundingClientRect().left + window.scrollX) + 'px';
         }
+
+        document.addEventListener('click', function(e) {
+            const card = document.getElementById('taskInfoCard');
+            if (card.style.display === 'block' && !card.contains(e.target)) {
+                card.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('scroll', () => {
+            document.getElementById('taskInfoCard').style.display = 'none';
+        });
 
         function addTask() {
             const taskValue = taskInput.value.trim();
