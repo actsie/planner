@@ -462,15 +462,48 @@
             border-radius: 8px;
             padding: 1rem;
             font-size: 1rem;
-            resize: none;
             transition: border-color 0.2s;
             font-family: inherit;
             line-height: 1.6;
+            min-height: 200px;
+            overflow-y: auto;
+        }
+
+        .note-content:empty:before {
+            content: attr(data-placeholder);
+            color: #a0aec0;
         }
 
         .note-content:focus {
             outline: none;
             border-color: #b5a99f;
+        }
+
+        .format-toolbar {
+            position: absolute;
+            background: #f0f0f0;
+            border-radius: 6px;
+            padding: 0.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 0.25rem;
+            font-size: 0.9rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .format-toolbar.show {
+            opacity: 1;
+        }
+
+        .format-toolbar button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem 0.4rem;
+            font-size: 0.9rem;
+            color: #4a5568;
         }
 
         .empty-state {
@@ -832,7 +865,14 @@
                 <div class="notes-main">
                     <div id="noteEditor" class="note-editor" style="display: none;">
                         <input type="text" class="note-title-input" id="noteTitleInput" placeholder="Note Title" />
-                        <textarea class="note-content" id="noteContent" placeholder="Start writing your thoughts..."></textarea>
+                        <div class="note-content" id="noteContent" contenteditable="true" data-placeholder="Start writing your thoughts..."></div>
+                        <div id="formatToolbar" class="format-toolbar" style="display:none;">
+                            <button data-tag="strong">B</button>
+                            <button data-tag="em">I</button>
+                            <button data-tag="del">S</button>
+                            <button data-tag="u">U</button>
+                            <button data-tag="mark">🟨</button>
+                        </div>
                     </div>
                     <div id="emptyState" class="empty-state">
                         <p>Select a note to view or create a new one</p>
@@ -1280,7 +1320,7 @@
             
             if (note) {
                 noteTitleInput.value = note.title || '';
-                noteContent.value = note.content || '';
+                noteContent.innerHTML = note.content || '';
                 noteEditor.style.display = 'flex';
                 emptyState.style.display = 'none';
                 loadNotes();
@@ -1324,7 +1364,7 @@
                 const note = notes.find(n => n.id === currentNoteId);
                 if (note) {
                     note.title = noteTitleInput.value || 'Untitled Note';
-                    note.content = noteContent.value;
+                    note.content = noteContent.innerHTML;
                     note.updatedAt = new Date().toISOString();
                     localStorage.setItem('notes', JSON.stringify(notes));
                     loadNotes();
@@ -1341,6 +1381,75 @@
         addNoteBtn.addEventListener('click', createNote);
         noteTitleInput.addEventListener('input', handleNoteInput);
         noteContent.addEventListener('input', handleNoteInput);
+
+        // Floating formatting toolbar
+        const formatToolbar = document.getElementById('formatToolbar');
+
+        function applyFormat(tag) {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+            const range = sel.getRangeAt(0);
+            if (range.collapsed || !noteContent.contains(sel.anchorNode)) return;
+
+            const wrapper = document.createElement(tag);
+            wrapper.appendChild(range.extractContents());
+            range.insertNode(wrapper);
+            sel.removeAllRanges();
+            const newRange = document.createRange();
+            newRange.selectNodeContents(wrapper);
+            sel.addRange(newRange);
+            hideFormatToolbar();
+            handleNoteInput();
+        }
+
+        function positionToolbar() {
+            const sel = window.getSelection();
+            if (!sel.rangeCount || sel.isCollapsed || !noteContent.contains(sel.anchorNode)) {
+                hideFormatToolbar();
+                return;
+            }
+            const range = sel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            formatToolbar.style.display = 'flex';
+            const toolbarRect = formatToolbar.getBoundingClientRect();
+            const top = rect.top + window.scrollY - toolbarRect.height - 6;
+            const left = rect.left + window.scrollX + (rect.width - toolbarRect.width) / 2;
+            formatToolbar.style.top = `${top}px`;
+            formatToolbar.style.left = `${left}px`;
+            requestAnimationFrame(() => formatToolbar.classList.add('show'));
+        }
+
+        function hideFormatToolbar() {
+            formatToolbar.classList.remove('show');
+            formatToolbar.style.display = 'none';
+        }
+
+        formatToolbar.addEventListener('mousedown', e => {
+            e.preventDefault();
+        });
+
+        formatToolbar.addEventListener('click', e => {
+            const tag = e.target.getAttribute('data-tag');
+            if (tag) {
+                applyFormat(tag);
+            }
+        });
+
+        noteContent.addEventListener('mouseup', positionToolbar);
+        noteContent.addEventListener('keyup', positionToolbar);
+        noteContent.addEventListener('blur', () => setTimeout(hideFormatToolbar, 100));
+        document.addEventListener('scroll', hideFormatToolbar);
+
+        noteContent.addEventListener('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                const key = e.key.toLowerCase();
+                if (['b','i','s','u','h'].includes(key)) {
+                    e.preventDefault();
+                    const map = { b:'strong', i:'em', s:'del', u:'u', h:'mark' };
+                    applyFormat(map[key]);
+                }
+            }
+        });
 
         // Allow renaming by clicking on title
         noteTitleInput.addEventListener('keypress', function(e) {
