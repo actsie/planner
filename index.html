@@ -1436,13 +1436,41 @@
             });
         }
 
+        function isSelectionFullyWrapped(range, tag) {
+            const frag = range.cloneContents();
+            const walker = document.createTreeWalker(frag, NodeFilter.SHOW_TEXT, null);
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                if (node.nodeValue.trim() === '') continue;
+                let parent = node.parentNode;
+                let inside = false;
+                while (parent) {
+                    if (parent.nodeType === 1 && parent.tagName.toLowerCase() === tag) {
+                        inside = true;
+                        break;
+                    }
+                    parent = parent.parentNode;
+                }
+                if (!inside) return false;
+            }
+            return true;
+        }
+
+        function unwrapTag(fragment, tag) {
+            fragment.querySelectorAll(tag).forEach(el => {
+                while (el.firstChild) {
+                    el.parentNode.insertBefore(el.firstChild, el);
+                }
+                el.remove();
+            });
+        }
+
         function toggleWrapper(range, tag) {
             const sel = window.getSelection();
-            const ancestor = getFullAncestor(range, tag);
-            if (ancestor) {
+            if (isSelectionFullyWrapped(range, tag)) {
                 const frag = range.extractContents();
+                unwrapTag(frag, tag);
                 range.insertNode(frag);
-                ancestor.normalize();
             } else {
                 const wrapper = document.createElement(tag);
                 wrapper.appendChild(range.extractContents());
@@ -1450,36 +1478,9 @@
                 range.selectNodeContents(wrapper);
             }
             sel.removeAllRanges();
-            const newRange = document.createRange();
-            newRange.selectNodeContents(range.startContainer);
-            sel.addRange(newRange);
+            sel.addRange(range);
         }
 
-        function toggleHighlight(range) {
-            toggleWrapper(range, 'mark');
-        }
-
-        function getFullAncestor(range, tag) {
-            let start = range.startContainer;
-            let end = range.endContainer;
-            while (start && start !== noteContent) {
-                if (start.nodeType === 1 && start.tagName.toLowerCase() === tag) break;
-                start = start.parentNode;
-            }
-            while (end && end !== noteContent) {
-                if (end.nodeType === 1 && end.tagName.toLowerCase() === tag) break;
-                end = end.parentNode;
-            }
-            if (start && start === end) {
-                const r = document.createRange();
-                r.selectNodeContents(start);
-                if (r.compareBoundaryPoints(Range.START_TO_START, range) <= 0 &&
-                    r.compareBoundaryPoints(Range.END_TO_END, range) >= 0) {
-                    return start;
-                }
-            }
-            return null;
-        }
 
 
         function positionToolbar() {
