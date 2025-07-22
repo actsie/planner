@@ -1386,21 +1386,95 @@
         const formatToolbar = document.getElementById('formatToolbar');
 
         function applyFormat(tag) {
+            const commandMap = {
+                strong: 'bold',
+                em: 'italic',
+                del: 'strikeThrough',
+                u: 'underline'
+            };
+
             const sel = window.getSelection();
             if (!sel.rangeCount) return;
             const range = sel.getRangeAt(0);
             if (range.collapsed || !noteContent.contains(sel.anchorNode)) return;
 
-            const wrapper = document.createElement(tag);
-            wrapper.appendChild(range.extractContents());
-            range.insertNode(wrapper);
+            if (tag === 'mark') {
+                toggleHighlight(range);
+            } else {
+                document.execCommand(commandMap[tag]);
+                normalizeFormatting();
+            }
+
+            hideFormatToolbar();
+            autoSaveNote();
+        }
+
+        function normalizeFormatting() {
+            noteContent.querySelectorAll('b').forEach(el => {
+                const strong = document.createElement('strong');
+                strong.innerHTML = el.innerHTML;
+                el.replaceWith(strong);
+            });
+            noteContent.querySelectorAll('i').forEach(el => {
+                const em = document.createElement('em');
+                em.innerHTML = el.innerHTML;
+                el.replaceWith(em);
+            });
+            noteContent.querySelectorAll('strike').forEach(el => {
+                const del = document.createElement('del');
+                del.innerHTML = el.innerHTML;
+                el.replaceWith(del);
+            });
+            noteContent.querySelectorAll('span[style*="background"]').forEach(el => {
+                if (el.style.backgroundColor === 'yellow' || el.style.backgroundColor === 'rgb(255, 255, 0)') {
+                    const mark = document.createElement('mark');
+                    mark.innerHTML = el.innerHTML;
+                    el.replaceWith(mark);
+                }
+            });
+        }
+
+        function toggleHighlight(range) {
+            const sel = window.getSelection();
+            const ancestor = getFullAncestor(range, 'mark');
+            if (ancestor) {
+                const frag = range.extractContents();
+                range.insertNode(frag);
+                ancestor.normalize();
+            } else {
+                const wrapper = document.createElement('mark');
+                wrapper.appendChild(range.extractContents());
+                range.insertNode(wrapper);
+                range.selectNodeContents(wrapper);
+            }
             sel.removeAllRanges();
             const newRange = document.createRange();
-            newRange.selectNodeContents(wrapper);
+            newRange.selectNodeContents(range.startContainer);
             sel.addRange(newRange);
-            hideFormatToolbar();
-            handleNoteInput();
         }
+
+        function getFullAncestor(range, tag) {
+            let start = range.startContainer;
+            let end = range.endContainer;
+            while (start && start !== noteContent) {
+                if (start.nodeType === 1 && start.tagName.toLowerCase() === tag) break;
+                start = start.parentNode;
+            }
+            while (end && end !== noteContent) {
+                if (end.nodeType === 1 && end.tagName.toLowerCase() === tag) break;
+                end = end.parentNode;
+            }
+            if (start && start === end) {
+                const r = document.createRange();
+                r.selectNodeContents(start);
+                if (r.compareBoundaryPoints(Range.START_TO_START, range) <= 0 &&
+                    r.compareBoundaryPoints(Range.END_TO_END, range) >= 0) {
+                    return start;
+                }
+            }
+            return null;
+        }
+
 
         function positionToolbar() {
             const sel = window.getSelection();
