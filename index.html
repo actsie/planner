@@ -1399,7 +1399,9 @@
             if (range.collapsed || !noteContent.contains(sel.anchorNode)) return;
 
             if (tag === 'mark') {
-                toggleHighlight(range);
+                toggleWrapper(range, 'mark');
+            } else if (tag === 'del') {
+                toggleWrapper(range, 'del');
             } else {
                 document.execCommand(commandMap[tag]);
                 normalizeFormatting();
@@ -1434,15 +1436,15 @@
             });
         }
 
-        function toggleHighlight(range) {
+        function toggleWrapper(range, tag) {
             const sel = window.getSelection();
-            const ancestor = getFullAncestor(range, 'mark');
+            const ancestor = getFullAncestor(range, tag);
             if (ancestor) {
                 const frag = range.extractContents();
                 range.insertNode(frag);
                 ancestor.normalize();
             } else {
-                const wrapper = document.createElement('mark');
+                const wrapper = document.createElement(tag);
                 wrapper.appendChild(range.extractContents());
                 range.insertNode(wrapper);
                 range.selectNodeContents(wrapper);
@@ -1451,6 +1453,10 @@
             const newRange = document.createRange();
             newRange.selectNodeContents(range.startContainer);
             sel.addRange(newRange);
+        }
+
+        function toggleHighlight(range) {
+            toggleWrapper(range, 'mark');
         }
 
         function getFullAncestor(range, tag) {
