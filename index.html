@@ -1029,18 +1029,40 @@
             }
         }
 
-        function showTaskInfo(event, index) {
-            event.stopPropagation();
+        function renderTaskInfoCard(index) {
             const card = document.getElementById('taskInfoCard');
             const task = tasks[index];
             const total = Math.round((task.totalTime || 0) / 60);
-            const last = task.sessions && task.sessions.length ? Math.round(task.sessions[task.sessions.length - 1].duration) : null;
+
+            const sessions = task.sessions || [];
+            const today = new Date();
+            const sessionsToday = sessions.filter(s => {
+                const d = new Date(s.completedAt);
+                return d.getFullYear() === today.getFullYear() &&
+                       d.getMonth() === today.getMonth() &&
+                       d.getDate() === today.getDate();
+            }).length;
+
+            let lastTime = null;
+            if (sessions.length) {
+                const last = sessions[sessions.length - 1];
+                lastTime = new Date(last.completedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            }
+
             card.innerHTML = `
                 <div class='info-task-name'>${task.task}</div>
                 <div>Worked: ${total} min</div>
-                ${last ? `<div>Last session: ${last} min</div>` : ''}
+                <div>🧠 Sessions today: ${sessionsToday}</div>
+                ${lastTime ? `<div>Last session: ${lastTime}</div>` : ''}
                 <div>${task.completed ? 'Completed' : 'Not done yet'}</div>
             `;
+            card.dataset.index = index;
+        }
+
+        function showTaskInfo(event, index) {
+            event.stopPropagation();
+            const card = document.getElementById('taskInfoCard');
+            renderTaskInfoCard(index);
             card.style.display = 'block';
             card.style.top = (event.target.getBoundingClientRect().bottom + window.scrollY + 6) + 'px';
             card.style.left = (event.target.getBoundingClientRect().left + window.scrollX) + 'px';
@@ -1633,6 +1655,11 @@
                 completedAt: new Date().toISOString()
             });
             localStorage.setItem('tasks', JSON.stringify(tasks));
+
+            const card = document.getElementById('taskInfoCard');
+            if (card.style.display === 'block' && parseInt(card.dataset.index) === currentTaskIndex) {
+                renderTaskInfoCard(currentTaskIndex);
+            }
         }
 
         function completeTask() {
