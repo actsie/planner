@@ -1399,9 +1399,13 @@
             if (range.collapsed || !noteContent.contains(sel.anchorNode)) return;
 
             if (tag === 'mark') {
-                toggleWrapper(range, 'mark');
+                if (isSelectionFullyWrapped(range, 'mark')) {
+                    document.execCommand('hiliteColor', false, 'transparent');
+                } else {
+                    document.execCommand('hiliteColor', false, 'yellow');
+                }
             } else if (tag === 'del') {
-                toggleWrapper(range, 'del');
+                document.execCommand('strikeThrough');
             } else {
                 document.execCommand(commandMap[tag]);
             }
@@ -1428,10 +1432,16 @@
                 el.replaceWith(del);
             });
             noteContent.querySelectorAll('span[style*="background"]').forEach(el => {
-                if (el.style.backgroundColor === 'yellow' || el.style.backgroundColor === 'rgb(255, 255, 0)') {
+                const bg = el.style.backgroundColor;
+                if (bg === 'yellow' || bg === 'rgb(255, 255, 0)') {
                     const mark = document.createElement('mark');
                     mark.innerHTML = el.innerHTML;
                     el.replaceWith(mark);
+                } else if (bg === 'transparent' || bg === '') {
+                    while (el.firstChild) {
+                        el.parentNode.insertBefore(el.firstChild, el);
+                    }
+                    el.remove();
                 }
             });
         }
@@ -1456,30 +1466,6 @@
             return true;
         }
 
-        function unwrapTag(fragment, tag) {
-            fragment.querySelectorAll(tag).forEach(el => {
-                while (el.firstChild) {
-                    el.parentNode.insertBefore(el.firstChild, el);
-                }
-                el.remove();
-            });
-        }
-
-        function toggleWrapper(range, tag) {
-            const sel = window.getSelection();
-            if (isSelectionFullyWrapped(range, tag)) {
-                const frag = range.extractContents();
-                unwrapTag(frag, tag);
-                range.insertNode(frag);
-            } else {
-                const wrapper = document.createElement(tag);
-                wrapper.appendChild(range.extractContents());
-                range.insertNode(wrapper);
-                range.selectNodeContents(wrapper);
-            }
-            sel.removeAllRanges();
-            sel.addRange(range);
-        }
 
 
 
