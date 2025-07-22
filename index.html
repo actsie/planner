@@ -124,6 +124,20 @@
             transition: background 0.2s;
         }
 
+        .active-task {
+            background: #e8dfd6;
+            border-left: 4px solid #7c9885;
+        }
+
+        .active-tag {
+            background: #7c9885;
+            color: white;
+            padding: 0 0.25rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+
         .task:hover {
             background: #faf8f3;
         }
@@ -889,22 +903,38 @@
 
         function loadTasks() {
             taskList.innerHTML = '';
-            
+
             // Active tasks
             const activeTasks = tasks.filter(task => !task.completed);
+
+            if (currentTaskIndex !== null && (taskTimerInterval || isTaskPaused)) {
+                const runningTask = tasks[currentTaskIndex];
+                const idx = activeTasks.indexOf(runningTask);
+                if (idx > -1) {
+                    activeTasks.splice(idx, 1);
+                    activeTasks.unshift(runningTask);
+                }
+            }
+
             activeTasks.forEach((task, index) => {
                 const actualIndex = tasks.indexOf(task);
                 const li = document.createElement('li');
                 li.classList.add('task');
+                const isActive = currentTaskIndex === actualIndex && (taskTimerInterval || isTaskPaused);
+                if (isActive) {
+                    li.classList.add('active-task');
+                }
 
                 const timeInfo = task.totalTime ? `Worked ${Math.round(task.totalTime / 60)} min` : '';
                 const showInfo = task.totalTime || (task.sessions && task.sessions.length);
                 const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${actualIndex})'>i</button>` : '';
 
+                const activeTag = isActive ? `<span class="active-tag">Active</span>` : '';
+
                 li.innerHTML = `
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                        <span>${task.task}</span>${infoIcon}
+                        ${activeTag}<span>${task.task}</span>${infoIcon}
                         <span class='task-time-info'>${timeInfo}</span>
                         <button class='timer-task' onclick='startTaskTimer(${actualIndex})'>⏱️</button>
                         <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
@@ -1388,6 +1418,10 @@
             audio.play().catch(() => {});
             
             document.getElementById('completionModal').classList.add('active');
+
+            // Reset active task and reload to restore original order
+            currentTaskIndex = null;
+            loadTasks();
         }
 
         function logCurrentSession() {
