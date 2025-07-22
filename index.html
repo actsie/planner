@@ -217,6 +217,27 @@
             margin-top: 1rem;
         }
 
+        .mood-timeline {
+            font-size: 0.75rem;
+            color: #999;
+            margin-top: 0.5rem;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .mood-timeline-entry {
+            margin-bottom: 0.25rem;
+        }
+
+        .link-button {
+            background: none;
+            border: none;
+            padding: 0;
+            color: #718096;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
         /* Timer Styles */
         .timer-display {
             font-size: 3rem;
@@ -634,6 +655,8 @@
                     </div>
                 </div>
                 <div class="mood-history" id="moodHistory"></div>
+                <div class="mood-timeline" id="moodTimeline"></div>
+                <button id="toggleMoodLog" class="link-button" style="display:none;">View all</button>
             </div>
 
             <div class="card full-width">
@@ -827,59 +850,103 @@
         // Mood Tracker functionality
         const moodEmojis = document.querySelectorAll('.emoji');
         const moodHistory = document.getElementById('moodHistory');
+        const moodTimeline = document.getElementById('moodTimeline');
+        const toggleMoodLogBtn = document.getElementById('toggleMoodLog');
+        let showAllMoodLog = false;
 
         function loadTodaysMood() {
-            const today = new Date().toDateString();
-            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
-            const todaysMood = moodLog.find(entry => new Date(entry.date).toDateString() === today);
-            
-            if (todaysMood) {
+            const todayString = new Date().toDateString();
+            let moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            const todaysEntries = moodLog.filter(e => new Date(e.date).toDateString() === todayString);
+
+            if (moodLog.length !== todaysEntries.length) {
+                moodLog = todaysEntries;
+                localStorage.setItem('moodLog', JSON.stringify(moodLog));
+            }
+
+            if (todaysEntries.length) {
+                const last = todaysEntries[todaysEntries.length - 1];
                 moodEmojis.forEach(emoji => {
-                    if (emoji.dataset.mood === todaysMood.mood) {
+                    if (emoji.dataset.mood === last.mood) {
                         emoji.classList.add('selected');
                     }
                 });
-                updateMoodHistory();
             }
+
+            updateMoodHistory();
+        }
+
+        function formatTime(dateStr) {
+            const options = { hour: 'numeric', minute: 'numeric' };
+            return new Date(dateStr).toLocaleTimeString([], options);
         }
 
         function updateMoodHistory() {
             const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
-            const today = new Date().toDateString();
-            const todaysMood = moodLog.find(entry => new Date(entry.date).toDateString() === today);
-            
-            if (todaysMood) {
-                moodHistory.textContent = `Today's mood: ${todaysMood.mood}`;
-            } else {
+            const todayString = new Date().toDateString();
+            const todaysEntries = moodLog.filter(entry => new Date(entry.date).toDateString() === todayString);
+
+            moodTimeline.innerHTML = '';
+
+            if (todaysEntries.length === 0) {
                 moodHistory.textContent = 'No mood logged today';
+                toggleMoodLogBtn.style.display = 'none';
+                return;
             }
+
+            const last = todaysEntries[todaysEntries.length - 1];
+            moodHistory.textContent = `Today's mood: ${last.mood}`;
+
+            const entriesToShow = showAllMoodLog ? todaysEntries : todaysEntries.slice(-3);
+
+            entriesToShow.forEach(entry => {
+                const div = document.createElement('div');
+                div.classList.add('mood-timeline-entry');
+                const taskInfo = entry.task ? `During "${entry.task}" (${entry.elapsed} min in)` : 'No task active';
+                div.textContent = `${entry.mood} – ${formatTime(entry.date)} – ${taskInfo}`;
+                moodTimeline.appendChild(div);
+            });
+
+            toggleMoodLogBtn.style.display = todaysEntries.length > 3 ? 'inline' : 'none';
+            toggleMoodLogBtn.textContent = showAllMoodLog ? 'Hide' : 'View all';
         }
 
         moodEmojis.forEach(emoji => {
             emoji.addEventListener('click', function() {
-                // Remove previous selection
                 moodEmojis.forEach(e => e.classList.remove('selected'));
                 this.classList.add('selected');
-                
-                // Save to localStorage
-                const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
-                const today = new Date();
-                const todayString = today.toDateString();
-                
-                // Remove today's entry if it exists
-                const filteredLog = moodLog.filter(entry => 
-                    new Date(entry.date).toDateString() !== todayString
-                );
-                
-                // Add new entry
-                filteredLog.push({
-                    date: today.toISOString(),
-                    mood: this.dataset.mood
+
+                const now = new Date();
+                const todayString = now.toDateString();
+                let moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+
+                moodLog = moodLog.filter(entry => new Date(entry.date).toDateString() === todayString);
+
+                let taskName = null;
+                let elapsed = null;
+                if (taskTimerInterval && currentTaskIndex !== null) {
+                    const task = tasks[currentTaskIndex];
+                    if (task) {
+                        taskName = task.task;
+                        elapsed = Math.floor((selectedDuration * 60 - taskTimeRemaining) / 60);
+                    }
+                }
+
+                moodLog.push({
+                    date: now.toISOString(),
+                    mood: this.dataset.mood,
+                    task: taskName,
+                    elapsed: elapsed
                 });
-                
-                localStorage.setItem('moodLog', JSON.stringify(filteredLog));
+
+                localStorage.setItem('moodLog', JSON.stringify(moodLog));
                 updateMoodHistory();
             });
+        });
+
+        toggleMoodLogBtn.addEventListener('click', () => {
+            showAllMoodLog = !showAllMoodLog;
+            updateMoodHistory();
         });
 
         // Timer functionality
