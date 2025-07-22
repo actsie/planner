@@ -630,6 +630,34 @@
             background: #d8cfc6;
         }
 
+        /* Daily Log Panel */
+        #dailyLogModal .modal-content {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .daily-log-day {
+            margin-bottom: 1.5rem;
+        }
+        .daily-log-day h4 {
+            color: #7c9885;
+            font-weight: 400;
+            margin-bottom: 0.5rem;
+        }
+        .daily-log-day ul {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 0.5rem;
+        }
+        .daily-log-day li {
+            margin-bottom: 0.25rem;
+        }
+        .more-done {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #718096;
+            cursor: pointer;
+        }
+
         /* Task Timer Display */
         .task-timer-display {
             position: fixed;
@@ -790,7 +818,7 @@
 
         <div class="main-content">
             <div class="card">
-                <h2>Today's Tasks</h2>
+                <h2>Today's Tasks <button id="openDailyLog" class="link-button">Logs</button></h2>
                 <div class="todo-input-container">
                     <input type="text" id="taskInput" placeholder="What would you like to do today?" />
                     <button id="addTask">Add</button>
@@ -911,6 +939,17 @@
         </div>
     </div>
 
+    <!-- Daily Log Modal -->
+    <div class="modal" id="dailyLogModal">
+        <div class="modal-content">
+            <h3>Daily Log</h3>
+            <div id="dailyLogContent"></div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeDailyLog()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Task Timer Display -->
     <div class="task-timer-display" id="taskTimerDisplay" style="display: none;">
         <button class="minimize-btn" onclick="minimizeTaskTimer()">▾</button>
@@ -948,6 +987,7 @@
         const taskList = document.getElementById('taskList');
         const taskInput = document.getElementById('taskInput');
         const addTaskButton = document.getElementById('addTask');
+        const openDailyLogBtn = document.getElementById('openDailyLog');
 
         // Task Timer variables
         let currentTaskIndex = null;
@@ -958,6 +998,102 @@
         let isTaskPaused = false;
         let isTimerMinimized = false;
         let pinnedTaskIndex = null;
+
+        function isDateToday(dateStr) {
+            if (!dateStr) return false;
+            const d = new Date(dateStr);
+            const today = new Date();
+            return d.getFullYear() === today.getFullYear() &&
+                   d.getMonth() === today.getMonth() &&
+                   d.getDate() === today.getDate();
+        }
+
+        function checkForNewDay() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const last = localStorage.getItem('lastLogDate');
+            if (last && last !== todayStr) {
+                const dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
+                const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+                const storedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
+                const completed = storedTasks.filter(t => t.completed && t.completedAt && t.completedAt.startsWith(last));
+                if (completed.length || moodLog.length) {
+                    dailyLog.push({ date: last, tasks: completed, moods: moodLog });
+                }
+                const remaining = storedTasks.filter(t => !(t.completed && t.completedAt && t.completedAt.startsWith(last)));
+                localStorage.setItem('tasks', JSON.stringify(remaining));
+                localStorage.removeItem('moodLog');
+                localStorage.setItem('dailyLog', JSON.stringify(dailyLog));
+                tasks = remaining;
+            }
+            localStorage.setItem('lastLogDate', todayStr);
+        }
+
+        function openDailyLog() {
+            loadDailyLog();
+            document.getElementById('dailyLogModal').classList.add('active');
+        }
+
+        function closeDailyLog() {
+            document.getElementById('dailyLogModal').classList.remove('active');
+        }
+
+        function loadDailyLog() {
+            const container = document.getElementById('dailyLogContent');
+            container.innerHTML = '';
+            const todayStr = new Date().toISOString().split('T')[0];
+            const log = [];
+            const tasksToday = tasks.filter(t => t.completed && isDateToday(t.completedAt));
+            const moodsToday = JSON.parse(localStorage.getItem('moodLog')) || [];
+            log.push({ date: todayStr, tasks: tasksToday, moods: moodsToday });
+            const past = JSON.parse(localStorage.getItem('dailyLog')) || [];
+            past.sort((a,b) => new Date(b.date) - new Date(a.date));
+            log.push(...past);
+
+            log.forEach(entry => {
+                const dayDiv = document.createElement('div');
+                dayDiv.classList.add('daily-log-day');
+                const dateHeader = document.createElement('h4');
+                dateHeader.textContent = new Date(entry.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+                dayDiv.appendChild(dateHeader);
+
+                if (!entry.tasks.length && !entry.moods.length) {
+                    const p = document.createElement('p');
+                    p.textContent = "No tasks completed. That's okay. Rest counts too. 🌱";
+                    dayDiv.appendChild(p);
+                } else {
+                    if (entry.tasks.length) {
+                        const h = document.createElement('div');
+                        h.innerHTML = '<strong>Completed Tasks:</strong>';
+                        dayDiv.appendChild(h);
+                        const ul = document.createElement('ul');
+                        entry.tasks.forEach(t => {
+                            const li = document.createElement('li');
+                            const mins = t.totalTime ? Math.round(t.totalTime / 60) : 0;
+                            const sessions = (t.sessions ? t.sessions.length : 0);
+                            li.textContent = `${t.task} – ⌛️ ${mins} mins – 🧠 ${sessions} sessions`;
+                            ul.appendChild(li);
+                        });
+                        dayDiv.appendChild(ul);
+                    }
+                    if (entry.moods.length) {
+                        const h = document.createElement('div');
+                        h.innerHTML = '<strong>Mood Entries:</strong>';
+                        dayDiv.appendChild(h);
+                        const ul = document.createElement('ul');
+                        entry.moods.forEach(m => {
+                            const li = document.createElement('li');
+                            const time = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                            const taskInfo = m.task ? ` – ${m.task}` : '';
+                            li.textContent = `${m.mood} ${time}${taskInfo}`;
+                            ul.appendChild(li);
+                        });
+                        dayDiv.appendChild(ul);
+                    }
+                }
+
+                container.appendChild(dayDiv);
+            });
+        }
 
         function loadTasks() {
             taskList.innerHTML = '';
@@ -997,13 +1133,12 @@
             });
             
             // Done tasks
-            const doneTasks = tasks.filter(task => task.completed);
+            const doneTasks = tasks.filter(task => task.completed && isDateToday(task.completedAt));
             if (doneTasks.length > 0) {
                 const doneSection = document.createElement('div');
                 doneSection.classList.add('done-section');
                 doneSection.innerHTML = '<h3>Done</h3>';
-                
-                doneTasks.forEach((task, index) => {
+                doneTasks.slice(0,2).forEach((task, index) => {
                     const actualIndex = tasks.indexOf(task);
                     const li = document.createElement('li');
                     li.classList.add('task', 'done-task');
@@ -1024,7 +1159,15 @@
                     `;
                     doneSection.appendChild(li);
                 });
-                
+
+                if (doneTasks.length > 2) {
+                    const more = document.createElement('div');
+                    more.classList.add('more-done');
+                    more.textContent = `+ ${doneTasks.length - 2} more in Log`;
+                    more.addEventListener('click', openDailyLog);
+                    doneSection.appendChild(more);
+                }
+
                 taskList.appendChild(doneSection);
             }
         }
@@ -1096,6 +1239,11 @@
 
         function toggleTask(index) {
             tasks[index].completed = !tasks[index].completed;
+            if (tasks[index].completed) {
+                tasks[index].completedAt = new Date().toISOString();
+            } else {
+                delete tasks[index].completedAt;
+            }
             localStorage.setItem('tasks', JSON.stringify(tasks));
             loadTasks();
         }
@@ -1666,6 +1814,7 @@
             if (currentTaskIndex === null) return;
             logCurrentSession();
             tasks[currentTaskIndex].completed = true;
+            tasks[currentTaskIndex].completedAt = new Date().toISOString();
             localStorage.setItem('tasks', JSON.stringify(tasks));
             closeCompletionModal();
         }
@@ -1773,6 +1922,7 @@
 
         // Initialize page
         window.onload = () => {
+            checkForNewDay();
             loadQuote();
             loadTasks();
             loadTodaysMood();
@@ -1780,6 +1930,8 @@
             updateFocusTimerVisibility();
             loadNotes();
         };
+
+        openDailyLogBtn.addEventListener('click', openDailyLog);
     </script>
 </body>
 </html>
