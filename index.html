@@ -974,9 +974,11 @@
                     if (tagsBlock) li.classList.add('tagged-task');
                     li.innerHTML = `
                         ${tagsBlock}
-                        <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                        <span>${task.task}</span>${infoIcon}
-                        <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                        <div class='task-header'>
+                            <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
+                            <span>${task.task}</span>${infoIcon}
+                            <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                        </div>
                     `;
                     doneSection.appendChild(li);
                 });
