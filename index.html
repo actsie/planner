@@ -181,10 +181,24 @@
             opacity: 1;
         }
 
+        .tag-row {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-bottom: 4px;
+        }
+
         .task-time-info {
             font-size: 11px;
-            color: #999;
-            margin-left: 0.5rem;
+            color: #555;
+            background: #e8dfd6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .done-task .task-time-info {
+            background: #f0e6de;
         }
 
         .active-tag {
@@ -921,17 +935,32 @@
                 const isActive = idx === pinnedTaskIndex && (taskTimerInterval || isTaskPaused);
                 if (isActive) li.classList.add('active-task');
 
-                const timeInfo = task.totalTime ? `Worked ${Math.round(task.totalTime / 60)} min` : '';
+                const totalMins = Math.round((task.totalTime || 0) / 60);
                 const showInfo = task.totalTime || (task.sessions && task.sessions.length);
                 const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${idx})'>i</button>` : '';
-                const activeTag = isActive ? `<div class='active-tag'>⏱ Active</div>` : '';
+
+                let tooltip = '';
+                if (totalMins) {
+                    const last = task.sessions && task.sessions.length ? task.sessions[task.sessions.length - 1] : null;
+                    tooltip = `Worked ${totalMins} min${totalMins !== 1 ? 's' : ''}`;
+                    if (last && last.completedAt) {
+                        const opts = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+                        tooltip += ` on ${new Date(last.completedAt).toLocaleString([], opts)}`;
+                    }
+                    if (task.sessions && task.sessions.length > 1) {
+                        tooltip += `\n${task.sessions.length} sessions total`;
+                    }
+                }
+
+                const timeTag = totalMins ? `<span class='task-time-info' title="${tooltip}">${task.completed ? '⌛️' : '🚧'} ${totalMins} min${totalMins !== 1 ? 's' : ''}</span>` : '';
+                const activeTag = isActive ? `<span class='active-tag'>🟢 Active</span>` : '';
+                const tagRow = (activeTag || timeTag) ? `<div class='tag-row'>${activeTag}${timeTag}</div>` : '';
 
                 li.innerHTML = `
-                    ${activeTag}
+                    ${tagRow}
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
                         <span>${task.task}</span>${infoIcon}
-                        <span class='task-time-info'>${timeInfo}</span>
                         <button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>
                         <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
                     </div>
@@ -952,14 +981,32 @@
                     const li = document.createElement('li');
                     li.classList.add('task', 'done-task');
 
-                    const timeInfo = task.totalTime ? ` (Worked ${Math.round(task.totalTime / 60)} mins)` : '';
+                    const totalMins = Math.round((task.totalTime || 0) / 60);
                     const showInfo = task.totalTime || (task.sessions && task.sessions.length);
                     const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${actualIndex})'>i</button>` : '';
+
+                    let tooltip = '';
+                    if (totalMins) {
+                        const last = task.sessions && task.sessions.length ? task.sessions[task.sessions.length - 1] : null;
+                        tooltip = `Worked ${totalMins} mins`;
+                        if (last && last.completedAt) {
+                            const opts = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+                            tooltip += ` on ${new Date(last.completedAt).toLocaleString([], opts)}`;
+                        }
+                        if (task.sessions && task.sessions.length > 1) {
+                            tooltip += `\n${task.sessions.length} sessions total`;
+                        }
+                    }
+
+                    const timeTag = totalMins ? `<span class='task-time-info' title="${tooltip}">⌛️ ${totalMins} mins</span>` : '';
+
                     li.innerHTML = `
-                        <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                        <span>${task.task}</span>${infoIcon}
-                        <span class='task-time-info'>${timeInfo}</span>
-                        <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                        <div class='tag-row'>${timeTag}</div>
+                        <div class='task-header'>
+                            <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
+                            <span>${task.task}</span>${infoIcon}
+                            <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                        </div>
                     `;
                     doneSection.appendChild(li);
                 });
