@@ -577,6 +577,60 @@
             min-width: 250px;
         }
 
+        .minimize-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+
+        .task-progress {
+            width: 100%;
+            height: 4px;
+            background: #e8dfd6;
+            border-radius: 2px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+
+        .task-progress-bar {
+            height: 100%;
+            background: #7c9885;
+            width: 0%;
+            transition: width 1s linear;
+        }
+
+        .minimized-task-timer {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .minimized-task-timer .controls button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            margin-left: 0.25rem;
+            color: #7c9885;
+            font-size: 1rem;
+        }
+
+        .floating-msg {
+            font-size: 0.85rem;
+            color: #a0aec0;
+            margin-bottom: 0.5rem;
+        }
+
         .task-timer-title {
             color: #7c9885;
             font-size: 1.1rem;
@@ -588,6 +642,27 @@
             color: #4a5568;
             font-weight: 300;
             font-variant-numeric: tabular-nums;
+        }
+
+        .task-header {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .toggle-sessions {
+            background: none;
+            border: none;
+            color: #a0aec0;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .session-details {
+            font-size: 0.8rem;
+            color: #718096;
+            margin-left: 1.5rem;
+            margin-top: 0.25rem;
         }
 
         /* Done List */
@@ -661,6 +736,21 @@
 
             <div class="card full-width">
                 <h2>Focus Timer</h2>
+                <div id="floatingMsg" class="floating-msg" style="display:none;">Active timer is running elsewhere (see top-right)</div>
+                <div id="minimizedTaskTimer" class="minimized-task-timer">
+                    <div>
+                        <span id="minTaskTitle"></span>
+                        <span id="minTaskTime"></span>
+                    </div>
+                    <div class="controls">
+                        <button onclick="pauseTaskTimer()" id="minPauseBtn">⏸️</button>
+                        <button onclick="resumeTaskTimer()" id="minResumeBtn" style="display:none;">▶️</button>
+                        <button onclick="cancelTaskTimer()">✖️</button>
+                        <button onclick="addMoreTimeDuringRun()">➕</button>
+                        <button onclick="maximizeTaskTimer()">🔼</button>
+                    </div>
+                    <div class="task-progress"><div class="task-progress-bar" id="minTaskProgressBar"></div></div>
+                </div>
                 <div class="timer-display" id="timerDisplay">25:00</div>
                 <div class="timer-controls">
                     <button class="timer-btn" id="startTimer">Start</button>
@@ -724,8 +814,10 @@
 
     <!-- Task Timer Display -->
     <div class="task-timer-display" id="taskTimerDisplay" style="display: none;">
+        <button class="minimize-btn" onclick="minimizeTaskTimer()">▾</button>
         <div class="task-timer-title" id="taskTimerTitle"></div>
         <div class="task-timer-time" id="taskTimerTime"></div>
+        <div class="task-progress"><div class="task-progress-bar" id="taskProgressBar"></div></div>
     </div>
 
     <script>
@@ -763,6 +855,9 @@
         let taskTimerInterval = null;
         let taskTimeRemaining = 0;
         let selectedDuration = 0;
+        let taskOriginalDuration = 0;
+        let isTaskPaused = false;
+        let isTimerMinimized = false;
 
         function loadTasks() {
             taskList.innerHTML = '';
@@ -773,17 +868,36 @@
                 const actualIndex = tasks.indexOf(task);
                 const li = document.createElement('li');
                 li.classList.add('task');
-                
-                const timeInfo = task.totalTime ? ` (Worked ${Math.round(task.totalTime / 60)} mins)` : '';
+
+                const timeInfo = task.totalTime ? `Worked ${Math.round(task.totalTime / 60)} min` : '';
+                const toggleBtn = task.sessions && task.sessions.length ? `<button class='toggle-sessions' onclick='toggleSessions(${actualIndex}, this)'>▼</button>` : '';
+
                 li.innerHTML = `
-                    <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                    <span>${task.task}</span>
-                    <span class='task-time-info'>${timeInfo}</span>
-                    <button class='timer-task' onclick='startTaskTimer(${actualIndex})'>⏱️</button>
-                    <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                    <div class='task-header'>
+                        <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
+                        <span>${task.task}</span>
+                        <span class='task-time-info'>${timeInfo}</span>
+                        ${toggleBtn}
+                        <button class='timer-task' onclick='startTaskTimer(${actualIndex})'>⏱️</button>
+                        <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                    </div>
                 `;
-                taskList.appendChild(li);
-            });
+
+                if (task.sessions && task.sessions.length) {
+                    const details = document.createElement('div');
+                    details.classList.add('session-details');
+                    details.style.display = 'none';
+                    task.sessions.forEach(s => {
+                        const d = document.createElement('div');
+                        const mins = Math.round(s.duration);
+                        d.textContent = `• ${mins} min at ${new Date(s.completedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+                        details.appendChild(d);
+                    });
+                    li.appendChild(details);
+                }
+
+            taskList.appendChild(li);
+        });
             
             // Done tasks
             const doneTasks = tasks.filter(task => task.completed);
@@ -808,6 +922,16 @@
                 });
                 
                 taskList.appendChild(doneSection);
+            }
+        }
+
+        function toggleSessions(index, btn) {
+            const li = btn.closest('li');
+            const details = li.querySelector('.session-details');
+            if (details) {
+                const visible = details.style.display !== 'none';
+                details.style.display = visible ? 'none' : 'block';
+                btn.textContent = visible ? '▼' : '▲';
             }
         }
 
@@ -1165,43 +1289,53 @@
 
         function startTaskCountdown() {
             if (currentTaskIndex === null) return;
-            
+
             const task = tasks[currentTaskIndex];
-            taskTimeRemaining = selectedDuration * 60;
-            
-            // Show task timer display
+            taskOriginalDuration = selectedDuration * 60;
+            taskTimeRemaining = taskOriginalDuration;
+            isTaskPaused = false;
+            isTimerMinimized = false;
+
             const display = document.getElementById('taskTimerDisplay');
             const titleEl = document.getElementById('taskTimerTitle');
             const timeEl = document.getElementById('taskTimerTime');
-            
+
             display.style.display = 'block';
+            document.getElementById('minimizedTaskTimer').style.display = 'none';
             titleEl.textContent = task.task;
-            
-            // Request notification permission
+            document.getElementById('minTaskTitle').textContent = task.task;
+
             if ('Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission();
             }
-            
+
+            startTaskInterval();
+            updateTaskTimerDisplay();
+            updateFloatingMsg();
+        }
+
+        function startTaskInterval() {
+            clearInterval(taskTimerInterval);
             taskTimerInterval = setInterval(() => {
                 if (taskTimeRemaining > 0) {
                     taskTimeRemaining--;
-                    const minutes = Math.floor(taskTimeRemaining / 60);
-                    const seconds = taskTimeRemaining % 60;
-                    timeEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    updateTaskTimerDisplay();
                 } else {
                     clearInterval(taskTimerInterval);
+                    taskTimerInterval = null;
                     taskTimerComplete();
                 }
             }, 1000);
-            
-            updateTaskTimerDisplay();
         }
 
         function updateTaskTimerDisplay() {
             const minutes = Math.floor(taskTimeRemaining / 60);
             const seconds = taskTimeRemaining % 60;
-            document.getElementById('taskTimerTime').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('taskTimerTime').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('minTaskTime').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            const progress = ((taskOriginalDuration - taskTimeRemaining) / taskOriginalDuration) * 100;
+            document.getElementById('taskProgressBar').style.width = `${progress}%`;
+            document.getElementById('minTaskProgressBar').style.width = `${progress}%`;
         }
 
         function taskTimerComplete() {
@@ -1221,40 +1355,37 @@
             document.getElementById('completionModal').classList.add('active');
         }
 
-        function completeTask() {
+        function logCurrentSession() {
             if (currentTaskIndex === null) return;
-            
-            // Update task
-            tasks[currentTaskIndex].completed = true;
-            tasks[currentTaskIndex].totalTime = (tasks[currentTaskIndex].totalTime || 0) + (selectedDuration * 60);
+            const elapsed = taskOriginalDuration - taskTimeRemaining;
+            if (elapsed <= 0) return;
+            tasks[currentTaskIndex].totalTime = (tasks[currentTaskIndex].totalTime || 0) + elapsed;
             tasks[currentTaskIndex].sessions = tasks[currentTaskIndex].sessions || [];
             tasks[currentTaskIndex].sessions.push({
-                duration: selectedDuration,
+                duration: elapsed / 60,
                 completedAt: new Date().toISOString()
             });
-            
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        function completeTask() {
+            if (currentTaskIndex === null) return;
+            logCurrentSession();
+            tasks[currentTaskIndex].completed = true;
             localStorage.setItem('tasks', JSON.stringify(tasks));
             closeCompletionModal();
             loadTasks();
         }
 
         function addMoreTime() {
-            closeCompletionModal();
+            logCurrentSession();
+            document.getElementById('completionModal').classList.remove('active');
             document.getElementById('durationModal').classList.add('active');
         }
 
         function keepTaskActive() {
             if (currentTaskIndex === null) return;
-            
-            // Update task time
-            tasks[currentTaskIndex].totalTime = (tasks[currentTaskIndex].totalTime || 0) + (selectedDuration * 60);
-            tasks[currentTaskIndex].sessions = tasks[currentTaskIndex].sessions || [];
-            tasks[currentTaskIndex].sessions.push({
-                duration: selectedDuration,
-                completedAt: new Date().toISOString()
-            });
-            
-            localStorage.setItem('tasks', JSON.stringify(tasks));
+            logCurrentSession();
             closeCompletionModal();
             loadTasks();
         }
@@ -1262,7 +1393,70 @@
         function closeCompletionModal() {
             document.getElementById('completionModal').classList.remove('active');
             document.getElementById('taskTimerDisplay').style.display = 'none';
+            document.getElementById('minimizedTaskTimer').style.display = 'none';
+            document.getElementById('floatingMsg').style.display = 'none';
+            clearInterval(taskTimerInterval);
+            taskTimerInterval = null;
             currentTaskIndex = null;
+            isTimerMinimized = false;
+        }
+
+        function minimizeTaskTimer() {
+            isTimerMinimized = true;
+            document.getElementById('taskTimerDisplay').style.display = 'none';
+            document.getElementById('minimizedTaskTimer').style.display = 'flex';
+            updateFloatingMsg();
+        }
+
+        function maximizeTaskTimer() {
+            isTimerMinimized = false;
+            document.getElementById('taskTimerDisplay').style.display = 'block';
+            document.getElementById('minimizedTaskTimer').style.display = 'none';
+            updateFloatingMsg();
+        }
+
+        function updateFloatingMsg() {
+            const msg = document.getElementById('floatingMsg');
+            if ((taskTimerInterval || isTaskPaused) && !isTimerMinimized) {
+                msg.style.display = 'block';
+            } else {
+                msg.style.display = 'none';
+            }
+        }
+
+        function pauseTaskTimer() {
+            if (taskTimerInterval) {
+                clearInterval(taskTimerInterval);
+                taskTimerInterval = null;
+                isTaskPaused = true;
+                document.getElementById('minPauseBtn').style.display = 'none';
+                document.getElementById('minResumeBtn').style.display = 'inline';
+            }
+        }
+
+        function resumeTaskTimer() {
+            if (isTaskPaused) {
+                startTaskInterval();
+                isTaskPaused = false;
+                document.getElementById('minPauseBtn').style.display = 'inline';
+                document.getElementById('minResumeBtn').style.display = 'none';
+            }
+        }
+
+        function cancelTaskTimer() {
+            if (currentTaskIndex === null) return;
+            logCurrentSession();
+            closeCompletionModal();
+            loadTasks();
+        }
+
+        function addMoreTimeDuringRun() {
+            const extra = parseInt(prompt('Add how many minutes?', '5'));
+            if (extra && extra > 0) {
+                taskTimeRemaining += extra * 60;
+                taskOriginalDuration += extra * 60;
+                updateTaskTimerDisplay();
+            }
         }
 
         // Initialize page
