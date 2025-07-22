@@ -254,7 +254,7 @@
             font-size: 0.75rem;
             color: #999;
             margin-top: 0.5rem;
-            max-height: 100px;
+            max-height: 200px;
             overflow-y: auto;
         }
 
@@ -1094,7 +1094,9 @@
             }
 
             const last = moodLog[moodLog.length - 1];
-            moodHistory.textContent = `Latest mood: ${last.mood}`;
+            const lastTime = new Date(last.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            const taskInfoLast = last.task ? `During "${last.task}" (${last.elapsed} min in)` : 'No task active';
+            moodHistory.textContent = `Latest mood: ${last.mood} – ${lastTime} – ${taskInfoLast}`;
 
             const entries = showAllMoodLog ? moodLog.slice() : moodLog.slice(-7);
 
