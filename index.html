@@ -811,12 +811,6 @@
         .daily-log-day li {
             margin-bottom: 0.25rem;
         }
-        .more-done {
-            margin-top: 0.5rem;
-            font-size: 0.85rem;
-            color: #718096;
-            cursor: pointer;
-        }
 
         /* Task Timer Display */
         .task-timer-display {
@@ -1015,7 +1009,7 @@
 
         <div class="main-content">
             <div class="card">
-                <h2>Today's Tasks <button id="openDailyLog" class="link-button">Logs</button></h2>
+                <h2>Today's Tasks</h2>
                 <div class="todo-input-container">
                     <input type="text" id="taskInput" placeholder="What would you like to do today?" />
                     <button id="addTask">Add</button>
@@ -1260,7 +1254,6 @@
         const taskList = document.getElementById('taskList');
         const taskInput = document.getElementById('taskInput');
         const addTaskButton = document.getElementById('addTask');
-        const openDailyLogBtn = document.getElementById('openDailyLog');
 
         // Task Timer variables
         let currentTaskIndex = null;
@@ -1640,12 +1633,14 @@
             });
             
             // Done tasks
-            const doneTasks = tasks.filter(task => task.completed && isDateToday(task.completedAt));
+            const doneTasks = tasks
+                .filter(task => task.completed && isDateToday(task.completedAt))
+                .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
             if (doneTasks.length > 0) {
                 const doneSection = document.createElement('div');
                 doneSection.classList.add('done-section');
                 doneSection.innerHTML = '<h3>Done</h3>';
-                doneTasks.slice(0,2).forEach((task, index) => {
+                doneTasks.slice(0,5).forEach((task) => {
                     const actualIndex = tasks.indexOf(task);
                     const li = document.createElement('li');
                     li.classList.add('task', 'done-task');
@@ -1666,14 +1661,6 @@
                     `;
                     doneSection.appendChild(li);
                 });
-
-                if (doneTasks.length > 2) {
-                    const more = document.createElement('div');
-                    more.classList.add('more-done');
-                    more.textContent = `+ ${doneTasks.length - 2} more in Log`;
-                    more.addEventListener('click', openDailyLog);
-                    doneSection.appendChild(more);
-                }
 
                 taskList.appendChild(doneSection);
             }
@@ -2654,7 +2641,6 @@
             initMoodPromptModal();
         };
 
-        openDailyLogBtn.addEventListener('click', () => openDailyLog());
         monthLabelEl.addEventListener('click', toggleMonthDropdown);
     </script>
 </body>
