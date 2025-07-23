@@ -930,6 +930,37 @@
         .done-task span {
             text-decoration: line-through;
         }
+
+        /* Daily Log Task Sections */
+        .log-task-section {
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .log-task-section .log-task {
+            margin-bottom: 8px;
+        }
+
+        .log-task-section .log-task:last-child {
+            margin-bottom: 0;
+        }
+
+        .log-task-section.done {
+            background: #e8f5e9;
+        }
+
+        .log-task-section.done .mood-section-title {
+            color: #4caf50;
+        }
+
+        .log-task-section.in-progress {
+            background: #fff8e1;
+        }
+
+        .log-task-section.in-progress .mood-section-title {
+            color: #fbc02d;
+        }
     </style>
 </head>
 <body>
@@ -1332,6 +1363,7 @@
 
                         const createTaskDiv = (t) => {
                             const div = document.createElement('div');
+                            div.classList.add('log-task');
                             const mins = t.totalTime ? Math.round(t.totalTime / 60) : 0;
                             const sessions = (t.sessions ? t.sessions.length : 0);
                             const prefix = t.completed ? '✅' : '🚧';
@@ -1401,6 +1433,7 @@
 
                         if (doneTasks.length) {
                             const sec = document.createElement('div');
+                            sec.classList.add('log-task-section', 'done');
                             const head = document.createElement('div');
                             head.className = 'mood-section-title';
                             head.textContent = '✔️ Done';
@@ -1411,6 +1444,7 @@
 
                         if (inProg.length) {
                             const sec = document.createElement('div');
+                            sec.classList.add('log-task-section', 'in-progress');
                             const head = document.createElement('div');
                             head.className = 'mood-section-title';
                             head.textContent = '🚧 In Progress';
