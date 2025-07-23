@@ -649,7 +649,7 @@
 
         /* Modal Styles */
         .modal {
-            display: none;
+            display: flex;
             position: fixed;
             top: 0;
             left: 0;
@@ -659,11 +659,22 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: opacity 0.2s ease;
         }
 
         .modal.active {
-            display: flex;
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
         }
+
+        /* Utility marker so JS can attach behaviors */
+        .unified-modal {}
 
         .modal-content {
             position: relative;
@@ -673,6 +684,14 @@
             max-width: 400px;
             width: 90%;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            transform: scale(0.9);
+            opacity: 0;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .modal.active .modal-content {
+            transform: scale(1);
+            opacity: 1;
         }
 
         .modal h3 {
@@ -753,11 +772,17 @@
 
         .modal-close {
             position: absolute;
-            top: -10px;
-            right: -10px;
-            background: none;
+            top: 8px;
+            right: 8px;
+            background: #f9f9f9;
             border: none;
-            font-size: 1.2rem;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
             cursor: pointer;
             color: #e53e3e;
         }
@@ -1084,7 +1109,7 @@
     </div>
 
     <!-- Timer Duration Modal -->
-    <div class="modal" id="durationModal">
+    <div class="modal unified-modal" id="durationModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeDurationModal()">❌</button>
             <h3>Select Timer Duration</h3>
@@ -1104,7 +1129,7 @@
     </div>
 
     <!-- Add Time Modal -->
-    <div class="modal" id="addTimeModal">
+    <div class="modal unified-modal" id="addTimeModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeAddTimeModal()">❌</button>
             <h3>Add more time</h3>
@@ -1117,7 +1142,7 @@
     </div>
 
     <!-- Task Completion Modal -->
-    <div class="modal" id="completionModal">
+    <div class="modal unified-modal" id="completionModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeCompletionModal()">❌</button>
             <h3>Timer Complete! Did you finish this task?</h3>
@@ -1130,7 +1155,7 @@
     </div>
 
     <!-- Daily Log Modal -->
-    <div class="modal" id="dailyLogModal">
+    <div class="modal unified-modal" id="dailyLogModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeDailyLog()">❌</button>
             <h3>Daily Log</h3>
@@ -1139,7 +1164,7 @@
     </div>
 
     <!-- Mood Reason Modal -->
-    <div class="modal" id="moodReasonModal">
+    <div class="modal unified-modal" id="moodReasonModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeMoodReasonModal()">❌</button>
             <h3>Want to share why you felt this way?</h3>
@@ -1152,7 +1177,7 @@
     </div>
 
     <!-- Focus Task Name Modal -->
-    <div class="modal" id="focusTaskModal">
+    <div class="modal unified-modal" id="focusTaskModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeFocusTaskModal()">❌</button>
             <h3>Name this focus session</h3>
@@ -1889,9 +1914,6 @@
             document.getElementById('focusTaskModal').classList.remove('active');
         }
 
-        document.getElementById('focusTaskModal').addEventListener('click', (e) => {
-            if (e.target.id === 'focusTaskModal') closeFocusTaskModal();
-        });
 
         let moodReasonCallback = null;
 
@@ -2466,18 +2488,17 @@
         document.getElementById('addTimeInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') confirmAddTime();
         });
-        document.getElementById('addTimeModal').addEventListener('click', (e) => {
-            if (e.target.id === 'addTimeModal') closeAddTimeModal();
-        });
-        document.getElementById('durationModal').addEventListener('click', (e) => {
-            if (e.target.id === 'durationModal') closeDurationModal();
-        });
-        document.getElementById('completionModal').addEventListener('click', (e) => {
-            if (e.target.id === 'completionModal') closeCompletionModal();
-        });
-        document.getElementById('dailyLogModal').addEventListener('click', (e) => {
-            if (e.target.id === 'dailyLogModal') closeDailyLog();
-        });
+
+        function initUnifiedModals() {
+            document.querySelectorAll('.unified-modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('unified-modal')) {
+                        const closeBtn = modal.querySelector('.modal-close');
+                        if (closeBtn) closeBtn.click();
+                    }
+                });
+            });
+        }
 
         // Initialize page
         window.onload = () => {
@@ -2489,6 +2510,7 @@
             updateFocusTimerVisibility();
             loadNotes();
             renderDateStrip();
+            initUnifiedModals();
         };
 
         openDailyLogBtn.addEventListener('click', () => openDailyLog());
