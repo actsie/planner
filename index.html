@@ -732,9 +732,12 @@
             margin-bottom: 0.5rem;
         }
         .daily-log-day ul {
-            list-style: none;
-            padding-left: 0;
+            list-style: disc;
+            padding-left: 1.2rem;
             margin-bottom: 0.5rem;
+        }
+        .daily-log-day ul ul {
+            padding-left: 1.2rem;
         }
         .daily-log-day li {
             margin-bottom: 0.25rem;
@@ -1248,34 +1251,44 @@
 
                             const taskMoods = entry.moods.filter(m => m.task === t.task);
                             if (taskMoods.length) {
-                                const moodHeader = document.createElement('div');
-                                moodHeader.innerHTML = '<em>😊 Moods:</em>';
-                                taskDiv.appendChild(moodHeader);
-                                const ul = document.createElement('ul');
-                                taskMoods.forEach((m) => {
-                                    const li = document.createElement('li');
-                                    const time = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                                    const labelMap = { before: '💡 Before', midway: '⏳ Midway', after: '✅ After' };
-                                    const minsInto = (m.minutesIntoTask !== undefined && m.minutesIntoTask !== null) ? ` (${m.minutesIntoTask} min)` : '';
-                                    li.innerHTML = `${labelMap[m.type] || ''}: ${m.mood} ${time}${minsInto}`;
-                                    if (m.reason) {
-                                        const reasonDiv = document.createElement('div');
-                                        reasonDiv.className = 'mood-reason';
-                                        reasonDiv.textContent = `"${m.reason}"`;
-                                        li.appendChild(reasonDiv);
-                                    }
-                                    if (['😐','😩','😠'].includes(m.mood)) {
-                                        const edit = document.createElement('span');
-                                        edit.textContent = '🖊️';
-                                        edit.classList.add('edit-icon');
-                                        edit.dataset.day = entry.date;
-                                        edit.dataset.index = entry.moods.indexOf(m);
-                                        edit.addEventListener('click', () => editMoodReason(edit.dataset.day, edit.dataset.index));
-                                        li.appendChild(edit);
-                                    }
-                                    ul.appendChild(li);
-                                });
-                                taskDiv.appendChild(ul);
+                                const generalTaskMoods = taskMoods.filter(m => m.type !== 'midway' && m.type !== 'after');
+                                const midwayTaskMoods = taskMoods.filter(m => m.type === 'midway');
+                                const afterTaskMoods = taskMoods.filter(m => m.type === 'after');
+
+                                const renderMoodList = (title, moods) => {
+                                    if (!moods.length) return;
+                                    const header = document.createElement('div');
+                                    header.innerHTML = `<em>${title}</em>`;
+                                    taskDiv.appendChild(header);
+                                    const ul = document.createElement('ul');
+                                    moods.forEach(m => {
+                                        const li = document.createElement('li');
+                                        const time = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                                        const minsInto = (m.minutesIntoTask !== undefined && m.minutesIntoTask !== null) ? ` (${m.minutesIntoTask} min)` : '';
+                                        li.innerHTML = `${m.mood} ${time}${minsInto}`;
+                                        if (m.reason) {
+                                            const reasonDiv = document.createElement('div');
+                                            reasonDiv.className = 'mood-reason';
+                                            reasonDiv.textContent = `"${m.reason}"`;
+                                            li.appendChild(reasonDiv);
+                                        }
+                                        if (['😐','😩','😠'].includes(m.mood)) {
+                                            const edit = document.createElement('span');
+                                            edit.textContent = '🖊️';
+                                            edit.classList.add('edit-icon');
+                                            edit.dataset.day = entry.date;
+                                            edit.dataset.index = entry.moods.indexOf(m);
+                                            edit.addEventListener('click', () => editMoodReason(edit.dataset.day, edit.dataset.index));
+                                            li.appendChild(edit);
+                                        }
+                                        ul.appendChild(li);
+                                    });
+                                    taskDiv.appendChild(ul);
+                                };
+
+                                renderMoodList('😊 Moods:', generalTaskMoods);
+                                renderMoodList('⏳ Midway:', midwayTaskMoods);
+                                renderMoodList('✅ After:', afterTaskMoods);
                             }
 
                             dayDiv.appendChild(taskDiv);
@@ -1284,34 +1297,44 @@
 
                     const generalMoods = entry.moods.filter(m => !m.task);
                     if (generalMoods.length) {
-                        const h = document.createElement('div');
-                        h.innerHTML = '<strong>Mood Entries:</strong>';
-                        dayDiv.appendChild(h);
-                        const ul = document.createElement('ul');
-                        generalMoods.forEach(m => {
-                            const li = document.createElement('li');
-                            const time = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                            const labelMap = { before: '💡 Before', midway: '⏳ Midway', after: '✅ After' };
-                            const minsInto = (m.minutesIntoTask !== undefined && m.minutesIntoTask !== null) ? ` (${m.minutesIntoTask} min)` : '';
-                            li.innerHTML = `${labelMap[m.type] || ''}: ${m.mood} ${time}${minsInto}`;
-                            if (m.reason) {
-                                const reasonDiv = document.createElement('div');
-                                reasonDiv.className = 'mood-reason';
-                                reasonDiv.textContent = `"${m.reason}"`;
-                                li.appendChild(reasonDiv);
-                            }
-                            if (['😐','😩','😠'].includes(m.mood)) {
-                                const edit = document.createElement('span');
-                                edit.textContent = '🖊️';
-                                edit.classList.add('edit-icon');
-                                edit.dataset.day = entry.date;
-                                edit.dataset.index = entry.moods.indexOf(m);
-                                edit.addEventListener('click', () => editMoodReason(edit.dataset.day, edit.dataset.index));
-                                li.appendChild(edit);
-                            }
-                            ul.appendChild(li);
-                        });
-                        dayDiv.appendChild(ul);
+                        const generalList = generalMoods.filter(m => m.type !== 'midway' && m.type !== 'after');
+                        const midwayList = generalMoods.filter(m => m.type === 'midway');
+                        const afterList = generalMoods.filter(m => m.type === 'after');
+
+                        const renderMoodList = (title, moods) => {
+                            if (!moods.length) return;
+                            const header = document.createElement('div');
+                            header.innerHTML = `<strong>${title}</strong>`;
+                            dayDiv.appendChild(header);
+                            const ul = document.createElement('ul');
+                            moods.forEach(m => {
+                                const li = document.createElement('li');
+                                const time = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                                const minsInto = (m.minutesIntoTask !== undefined && m.minutesIntoTask !== null) ? ` (${m.minutesIntoTask} min)` : '';
+                                li.innerHTML = `${m.mood} ${time}${minsInto}`;
+                                if (m.reason) {
+                                    const reasonDiv = document.createElement('div');
+                                    reasonDiv.className = 'mood-reason';
+                                    reasonDiv.textContent = `"${m.reason}"`;
+                                    li.appendChild(reasonDiv);
+                                }
+                                if (['😐','😩','😠'].includes(m.mood)) {
+                                    const edit = document.createElement('span');
+                                    edit.textContent = '🖊️';
+                                    edit.classList.add('edit-icon');
+                                    edit.dataset.day = entry.date;
+                                    edit.dataset.index = entry.moods.indexOf(m);
+                                    edit.addEventListener('click', () => editMoodReason(edit.dataset.day, edit.dataset.index));
+                                    li.appendChild(edit);
+                                }
+                                ul.appendChild(li);
+                            });
+                            dayDiv.appendChild(ul);
+                        };
+
+                        renderMoodList('Mood Entries:', generalList);
+                        renderMoodList('⏳ Midway:', midwayList);
+                        renderMoodList('✅ After:', afterList);
                     }
                 }
 
