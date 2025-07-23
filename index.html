@@ -342,6 +342,12 @@
             margin-left: 1.2rem;
             font-style: italic;
             color: #555;
+            font-size: 0.85rem;
+        }
+
+        .mood-section-title {
+            font-weight: 500;
+            margin-top: 0.25rem;
         }
 
         .edit-icon {
@@ -367,6 +373,21 @@
             margin: 1rem 0;
             font-weight: 300;
             font-variant-numeric: tabular-nums;
+        }
+
+        .timer-input {
+            font-size: 3rem;
+            text-align: center;
+            width: 80px;
+            border: none;
+            border-bottom: 2px solid #c9b3a3;
+            background: transparent;
+            color: #7c9885;
+            font-weight: 300;
+        }
+
+        .timer-input:focus {
+            outline: none;
         }
 
         .timer-controls {
@@ -970,7 +991,10 @@
                     </div>
                     <div class="task-progress"><div class="task-progress-bar" id="minTaskProgressBar"></div></div>
                 </div>
-                <div class="timer-display" id="timerDisplay">25:00</div>
+                <div class="timer-display">
+                    <input id="timerInput" class="timer-input" type="number" min="1" value="25">
+                    <span id="timerDisplay" style="display:none;">25:00</span>
+                </div>
                 <div class="timer-controls">
                     <button class="timer-btn" id="startTimer">Start</button>
                     <button class="timer-btn" id="pauseTimer" disabled>Pause</button>
@@ -1043,6 +1067,30 @@
             <div id="dailyLogContent"></div>
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeDailyLog()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mood Reason Modal -->
+    <div class="modal" id="moodReasonModal">
+        <div class="modal-content">
+            <h3>Want to share why you felt this way?</h3>
+            <input type="text" id="moodReasonInput" placeholder="Optional reason" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
+            <div class="modal-actions" style="margin-top:1.5rem;">
+                <button class="modal-btn primary" id="saveMoodReason">Save</button>
+                <button class="modal-btn secondary" id="skipMoodReason">Skip</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Focus Task Name Modal -->
+    <div class="modal" id="focusTaskModal">
+        <div class="modal-content">
+            <h3>Name this focus session</h3>
+            <input type="text" id="focusTaskName" placeholder="Task name" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
+            <div class="modal-actions" style="margin-top:1.5rem;">
+                <button class="modal-btn primary" id="startFocusTask">Start</button>
+                <button class="modal-btn secondary" onclick="closeFocusTaskModal()">Cancel</button>
             </div>
         </div>
     </div>
@@ -1258,7 +1306,8 @@
                                 const renderMoodList = (title, moods) => {
                                     if (!moods.length) return;
                                     const header = document.createElement('div');
-                                    header.innerHTML = `<em>${title}</em>`;
+                                    header.className = 'mood-section-title';
+                                    header.textContent = title;
                                     taskDiv.appendChild(header);
                                     const ul = document.createElement('ul');
                                     moods.forEach(m => {
@@ -1347,23 +1396,25 @@
         if (day === todayStr) {
             let moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
             const entry = moodLog[index];
-            const reason = prompt('Update reason', entry.reason || '');
-            if (reason !== null) {
-                moodLog[index].reason = reason;
-                localStorage.setItem('moodLog', JSON.stringify(moodLog));
-                loadDailyLog(day);
-            }
+            openMoodReasonModal(entry.reason || '', (reason) => {
+                if (reason !== null) {
+                    moodLog[index].reason = reason;
+                    localStorage.setItem('moodLog', JSON.stringify(moodLog));
+                    loadDailyLog(day);
+                }
+            });
         } else {
             let dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
             const logEntry = dailyLog.find(e => e.date === day);
             if (!logEntry) return;
             const entry = logEntry.moods[index];
-            const reason = prompt('Update reason', entry.reason || '');
-            if (reason !== null) {
-                logEntry.moods[index].reason = reason;
-                localStorage.setItem('dailyLog', JSON.stringify(dailyLog));
-                loadDailyLog(day);
-            }
+            openMoodReasonModal(entry.reason || '', (reason) => {
+                if (reason !== null) {
+                    logEntry.moods[index].reason = reason;
+                    localStorage.setItem('dailyLog', JSON.stringify(dailyLog));
+                    loadDailyLog(day);
+                }
+            });
         }
     }
 
@@ -1619,23 +1670,26 @@
                     minutesIntoTask = 0;
                 }
 
-                let reason = null;
+                const finalize = (reason) => {
+                    moodLog.push({
+                        date: now.toISOString(),
+                        mood: emoji.dataset.mood,
+                        task: taskName,
+                        minutesIntoTask: minutesIntoTask,
+                        type: moodType,
+                        reason: reason
+                    });
+
+                    localStorage.setItem('moodLog', JSON.stringify(moodLog));
+                    updateMoodHistory();
+                    pendingMoodType = null;
+                };
+
                 if (['😐','😩','😠'].includes(this.dataset.mood)) {
-                    reason = prompt('Want to add a reason?');
+                    openMoodReasonModal('', finalize);
+                } else {
+                    finalize(null);
                 }
-
-                moodLog.push({
-                    date: now.toISOString(),
-                    mood: this.dataset.mood,
-                    task: taskName,
-                    minutesIntoTask: minutesIntoTask,
-                    type: moodType,
-                    reason: reason
-                });
-
-                localStorage.setItem('moodLog', JSON.stringify(moodLog));
-                updateMoodHistory();
-                pendingMoodType = null;
             });
         });
 
@@ -1651,57 +1705,36 @@
         let isRunning = false;
 
         const timerDisplay = document.getElementById('timerDisplay');
+        const timerInput = document.getElementById('timerInput');
         const startBtn = document.getElementById('startTimer');
         const pauseBtn = document.getElementById('pauseTimer');
         const resetBtn = document.getElementById('resetTimer');
         const progressBar = document.getElementById('timerProgressBar');
 
-        // Allow editing timer duration when not running
-        timerDisplay.addEventListener('click', () => {
-            if (isRunning) return;
-            const input = prompt('Set timer minutes:', Math.floor(totalTime / 60));
-            if (input !== null) {
-                const minutes = parseInt(input);
-                if (!isNaN(minutes) && minutes > 0) {
-                    totalTime = minutes * 60;
-                    timeRemaining = totalTime;
-                    progressBar.style.width = '0%';
-                    updateTimerDisplay();
-                }
-            }
-        });
+
 
         function updateTimerDisplay() {
             const minutes = Math.floor(timeRemaining / 60);
             const seconds = timeRemaining % 60;
             timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            // Update progress bar
+
+            if (isRunning) {
+                timerDisplay.style.display = 'inline';
+                timerInput.style.display = 'none';
+            } else {
+                timerDisplay.style.display = 'none';
+                timerInput.style.display = 'inline';
+                timerInput.value = Math.floor(totalTime / 60);
+            }
+
             const progress = ((totalTime - timeRemaining) / totalTime) * 100;
             progressBar.style.width = `${progress}%`;
         }
 
         function startTimer() {
-            if (!isRunning) {
-                isRunning = true;
-                startBtn.disabled = true;
-                pauseBtn.disabled = false;
-                
-                timerInterval = setInterval(() => {
-                    if (timeRemaining > 0) {
-                        timeRemaining--;
-                        updateTimerDisplay();
-                    } else {
-                        // Timer finished
-                        clearInterval(timerInterval);
-                        isRunning = false;
-                        startBtn.disabled = false;
-                        pauseBtn.disabled = true;
-                        alert('Time for a break! Great job focusing!');
-                        resetTimer();
-                    }
-                }, 1000);
-            }
+            if (isRunning) return;
+            document.getElementById('focusTaskName').value = '';
+            document.getElementById('focusTaskModal').classList.add('active');
         }
 
         function pauseTimer() {
@@ -1726,6 +1759,65 @@
         startBtn.addEventListener('click', startTimer);
         pauseBtn.addEventListener('click', pauseTimer);
         resetBtn.addEventListener('click', resetTimer);
+
+        function closeFocusTaskModal() {
+            document.getElementById('focusTaskModal').classList.remove('active');
+        }
+
+        document.getElementById('focusTaskModal').addEventListener('click', (e) => {
+            if (e.target.id === 'focusTaskModal') closeFocusTaskModal();
+        });
+
+        let moodReasonCallback = null;
+
+        function openMoodReasonModal(initial, cb) {
+            moodReasonCallback = cb;
+            const modal = document.getElementById('moodReasonModal');
+            const input = document.getElementById('moodReasonInput');
+            input.value = initial || '';
+            modal.classList.add('active');
+            input.focus();
+        }
+
+        function closeMoodReasonModal() {
+            document.getElementById('moodReasonModal').classList.remove('active');
+        }
+
+        document.getElementById('saveMoodReason').addEventListener('click', () => {
+            const val = document.getElementById('moodReasonInput').value.trim();
+            closeMoodReasonModal();
+            if (moodReasonCallback) moodReasonCallback(val);
+        });
+
+        document.getElementById('skipMoodReason').addEventListener('click', () => {
+            closeMoodReasonModal();
+            if (moodReasonCallback) moodReasonCallback(null);
+        });
+
+        document.getElementById('moodReasonModal').addEventListener('click', (e) => {
+            if (e.target.id === 'moodReasonModal') {
+                closeMoodReasonModal();
+                if (moodReasonCallback) moodReasonCallback(null);
+            }
+        });
+
+        document.getElementById('startFocusTask').addEventListener('click', () => {
+            const nameInput = document.getElementById('focusTaskName');
+            const taskName = nameInput.value.trim() || 'Focus Session';
+            closeFocusTaskModal();
+
+            const minutes = parseInt(timerInput.value) || 25;
+            totalTime = minutes * 60;
+            timeRemaining = totalTime;
+
+            tasks.push({ task: taskName, completed: false, totalTime: 0, sessions: [] });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+
+            currentTaskIndex = tasks.length - 1;
+            selectedDuration = minutes;
+            startTaskCountdown();
+        });
 
         // Notes functionality
         let notes = JSON.parse(localStorage.getItem('notes')) || [];
