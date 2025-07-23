@@ -1189,6 +1189,40 @@
         </div>
     </div>
 
+    <!-- Mood Prompt Modal -->
+    <div class="modal unified-modal" id="moodPromptModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeMoodPromptModal()">❌</button>
+            <h3 id="moodPromptTitle">Mood Check</h3>
+            <div class="mood-container">
+                <div>
+                    <div class="emoji" data-mood="😐">😐</div>
+                    <div class="mood-label">meh</div>
+                </div>
+                <div>
+                    <div class="emoji" data-mood="🙂">🙂</div>
+                    <div class="mood-label">okay</div>
+                </div>
+                <div>
+                    <div class="emoji" data-mood="😄">😄</div>
+                    <div class="mood-label">good</div>
+                </div>
+                <div>
+                    <div class="emoji" data-mood="😩">😩</div>
+                    <div class="mood-label">tired</div>
+                </div>
+                <div>
+                    <div class="emoji" data-mood="😠">😠</div>
+                    <div class="mood-label">stressed</div>
+                </div>
+            </div>
+            <input type="text" id="moodPromptReason" placeholder="Want to share why?" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;display:none;">
+            <div class="modal-actions" style="margin-top:1.5rem;">
+                <button class="modal-btn primary" id="submitMoodPrompt" style="display:none;">Submit</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Task Timer Display -->
     <div class="task-timer-display" id="taskTimerDisplay" style="display: none;">
         <button class="minimize-btn" onclick="minimizeTaskTimer()">▾</button>
@@ -2322,8 +2356,7 @@
                     taskTimeRemaining--;
                     if (!halfwayPrompted && taskTimeRemaining <= taskOriginalDuration / 2) {
                         halfwayPrompted = true;
-                        alert('Halfway there! How are you feeling? Select a mood.');
-                        pendingMoodType = 'midway';
+                        openMoodPromptModal('midway');
                     }
                     updateTaskTimerDisplay();
                 } else {
@@ -2358,8 +2391,7 @@
             audio.volume = 0.3;
             audio.play().catch(() => {});
 
-            pendingMoodType = 'after';
-            alert('How did that feel? Select a mood.');
+            openMoodPromptModal('after');
 
             pinnedTaskIndex = null;
             document.getElementById('completionModal').classList.add('active');
@@ -2518,6 +2550,85 @@
             if (e.key === 'Enter') confirmAddTime();
         });
 
+        let moodPromptType = null;
+        let moodPromptSelected = null;
+
+        function openMoodPromptModal(type) {
+            moodPromptType = type;
+            moodPromptSelected = null;
+            document.getElementById('moodPromptTitle').textContent =
+                type === 'midway' ? 'Quick check-in: How are you feeling so far?' : 'Session complete. How did that feel?';
+            document.getElementById('moodPromptReason').value = '';
+            document.getElementById('moodPromptReason').style.display = 'none';
+            document.getElementById('submitMoodPrompt').style.display = 'none';
+            document.querySelectorAll('#moodPromptModal .emoji').forEach(e => e.classList.remove('selected'));
+            document.getElementById('moodPromptModal').classList.add('active');
+        }
+
+        function closeMoodPromptModal() {
+            document.getElementById('moodPromptModal').classList.remove('active');
+            moodPromptType = null;
+            moodPromptSelected = null;
+        }
+
+        function selectPromptMood(el) {
+            document.querySelectorAll('#moodPromptModal .emoji').forEach(e => e.classList.remove('selected'));
+            el.classList.add('selected');
+            moodPromptSelected = el.dataset.mood;
+            if (['😐','😩','😠'].includes(moodPromptSelected)) {
+                document.getElementById('moodPromptReason').style.display = 'block';
+                document.getElementById('submitMoodPrompt').style.display = 'inline-block';
+                document.getElementById('moodPromptReason').focus();
+            } else {
+                finalizeMoodPrompt(null);
+            }
+        }
+
+        function finalizeMoodPrompt(reason) {
+            if (!moodPromptSelected) { closeMoodPromptModal(); return; }
+            const now = new Date();
+            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+
+            let taskName = null;
+            let minutesIntoTask = null;
+            if (currentTaskIndex !== null) {
+                const task = tasks[currentTaskIndex];
+                if (task) {
+                    taskName = task.task;
+                    minutesIntoTask = moodPromptType === 'after'
+                        ? Math.floor(taskOriginalDuration / 60)
+                        : Math.floor((selectedDuration * 60 - taskTimeRemaining) / 60);
+                }
+            }
+
+            moodLog.push({
+                date: now.toISOString(),
+                mood: moodPromptSelected,
+                task: taskName,
+                minutesIntoTask: minutesIntoTask,
+                type: moodPromptType,
+                reason: reason
+            });
+            localStorage.setItem('moodLog', JSON.stringify(moodLog));
+            updateMoodHistory();
+            closeMoodPromptModal();
+        }
+
+        function initMoodPromptModal() {
+            document.querySelectorAll('#moodPromptModal .emoji').forEach(el => {
+                el.addEventListener('click', () => selectPromptMood(el));
+            });
+            document.getElementById('submitMoodPrompt').addEventListener('click', () => {
+                const val = document.getElementById('moodPromptReason').value.trim();
+                finalizeMoodPrompt(val || null);
+            });
+            document.getElementById('moodPromptReason').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('submitMoodPrompt').click();
+                }
+            });
+        }
+
         function initUnifiedModals() {
             document.querySelectorAll('.unified-modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
@@ -2540,6 +2651,7 @@
             loadNotes();
             renderDateStrip();
             initUnifiedModals();
+            initMoodPromptModal();
         };
 
         openDailyLogBtn.addEventListener('click', () => openDailyLog());
