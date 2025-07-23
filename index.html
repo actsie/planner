@@ -1048,6 +1048,18 @@
         </div>
     </div>
 
+    <!-- Add Time Modal -->
+    <div class="modal" id="addTimeModal">
+        <div class="modal-content">
+            <h3>Add more time</h3>
+            <input type="number" id="addTimeInput" placeholder="Add how many minutes?" value="5" min="1" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
+            <div class="modal-actions" style="margin-top:1.5rem;">
+                <button class="modal-btn secondary" onclick="closeAddTimeModal()">Cancel</button>
+                <button class="modal-btn primary" id="confirmAddTime">Add</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Task Completion Modal -->
     <div class="modal" id="completionModal">
         <div class="modal-content">
@@ -1625,7 +1637,7 @@
             }
 
             const last = moodLog[moodLog.length - 1];
-            const lastTime = new Date(last.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            const lastTime = formatTime(last.date);
             const lastElapsed = (last.minutesIntoTask !== null && last.minutesIntoTask !== undefined) ? last.minutesIntoTask : last.elapsed;
             const taskInfoLast = last.task ? `During "${last.task}" (${lastElapsed} min in)` : 'No task active';
             moodHistory.textContent = `Latest mood: ${last.mood} – ${lastTime} – ${taskInfoLast}`;
@@ -1809,6 +1821,9 @@
             const minutes = parseInt(timerInput.value) || 25;
             totalTime = minutes * 60;
             timeRemaining = totalTime;
+
+            isRunning = true;
+            updateTimerDisplay();
 
             tasks.push({ task: taskName, completed: false, totalTime: 0, sessions: [] });
             localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -2104,6 +2119,9 @@
         function startTaskCountdown() {
             if (currentTaskIndex === null) return;
 
+            isRunning = true;
+            updateTimerDisplay();
+
             pendingMoodType = null;
             halfwayPrompted = false;
 
@@ -2233,6 +2251,8 @@
             currentTaskIndex = null;
             pinnedTaskIndex = null;
             isTimerMinimized = false;
+            isRunning = false;
+            updateTimerDisplay();
             loadTasks();
             updateFocusTimerVisibility();
         }
@@ -2304,13 +2324,38 @@
         }
 
         function addMoreTimeDuringRun() {
-            const extra = parseInt(prompt('Add how many minutes?', '5'));
-            if (extra && extra > 0) {
-                taskTimeRemaining += extra * 60;
-                taskOriginalDuration += extra * 60;
-                updateTaskTimerDisplay();
-            }
+            openAddTimeModal();
         }
+
+        function openAddTimeModal() {
+            const input = document.getElementById('addTimeInput');
+            input.value = '5';
+            document.getElementById('addTimeModal').classList.add('active');
+            input.focus();
+        }
+
+        function closeAddTimeModal() {
+            document.getElementById('addTimeModal').classList.remove('active');
+            document.getElementById('addTimeInput').value = '';
+        }
+
+       function confirmAddTime() {
+           const extra = parseInt(document.getElementById('addTimeInput').value);
+           if (extra && extra > 0) {
+               taskTimeRemaining += extra * 60;
+               taskOriginalDuration += extra * 60;
+               updateTaskTimerDisplay();
+           }
+           closeAddTimeModal();
+       }
+
+        document.getElementById('confirmAddTime').addEventListener('click', confirmAddTime);
+        document.getElementById('addTimeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') confirmAddTime();
+        });
+        document.getElementById('addTimeModal').addEventListener('click', (e) => {
+            if (e.target.id === 'addTimeModal') closeAddTimeModal();
+        });
 
         // Initialize page
         window.onload = () => {
