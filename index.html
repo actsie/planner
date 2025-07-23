@@ -1026,7 +1026,7 @@
 
             <div class="card">
                 <h2>How are you feeling?</h2>
-                <div class="mood-container">
+                <div class="mood-container" id="mainMoodContainer">
                     <div>
                         <div class="emoji" data-mood="😐">😐</div>
                         <div class="mood-label">meh</div>
@@ -1216,7 +1216,7 @@
                     <div class="mood-label">stressed</div>
                 </div>
             </div>
-            <input type="text" id="moodPromptReason" placeholder="Want to share why?" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;display:none;">
+                <input type="text" id="moodPromptReason" placeholder="What made it difficult?" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;display:none;">
             <div class="modal-actions" style="margin-top:1.5rem;">
                 <button class="modal-btn primary" id="submitMoodPrompt" style="display:none;">Submit</button>
             </div>
@@ -1441,7 +1441,7 @@
                             const mins = t.totalTime ? Math.round(t.totalTime / 60) : 0;
                             const sessions = (t.sessions ? t.sessions.length : 0);
                             const prefix = t.completed ? '✅' : '🚧';
-                            div.innerHTML = `<strong>${prefix} Task: ${t.task}</strong><br>Total time: ${mins} mins<br>🧠 Pomodoro sessions: ${sessions}`;
+                            div.innerHTML = `<strong>${prefix} ${t.task}</strong><br>Total time: ${mins} mins<br>🧠 Pomodoro sessions: ${sessions}`;
 
                             const taskMoods = entry.moods.filter(m => m.task === t.task);
                             if (taskMoods.length) {
@@ -1771,7 +1771,7 @@
         addTaskButton.addEventListener('click', addTask);
 
         // Mood Tracker functionality
-        const moodEmojis = document.querySelectorAll('.emoji');
+        const moodEmojis = document.querySelectorAll('#mainMoodContainer .emoji');
         const moodHistory = document.getElementById('moodHistory');
         const moodTimeline = document.getElementById('moodTimeline');
         const toggleMoodLogBtn = document.getElementById('toggleMoodLog');
@@ -2557,7 +2557,7 @@
             moodPromptType = type;
             moodPromptSelected = null;
             document.getElementById('moodPromptTitle').textContent =
-                type === 'midway' ? 'Quick check-in: How are you feeling so far?' : 'Session complete. How did that feel?';
+                type === 'midway' ? 'Halfway there — how are you feeling?' : 'Session complete. How did that feel?';
             document.getElementById('moodPromptReason').value = '';
             document.getElementById('moodPromptReason').style.display = 'none';
             document.getElementById('submitMoodPrompt').style.display = 'none';
