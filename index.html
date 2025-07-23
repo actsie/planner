@@ -341,8 +341,19 @@
         .mood-reason {
             margin-left: 1.2rem;
             font-style: italic;
-            color: #555;
+            color: #666;
             font-size: 0.85rem;
+        }
+
+        .mood-toggle {
+            cursor: pointer;
+            color: #718096;
+            font-size: 0.85rem;
+            margin: 0.25rem 0;
+        }
+
+        .task-moods {
+            margin-left: 1rem;
         }
 
         .mood-section-title {
@@ -1178,10 +1189,17 @@
                 const dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
                 const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
                 const storedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
-                const completed = storedTasks.filter(t => t.completed && t.completedAt && t.completedAt.startsWith(last));
-                if (completed.length || moodLog.length) {
-                    dailyLog.push({ date: last, tasks: completed, moods: moodLog });
+
+                const dayTasks = storedTasks.filter(t => {
+                    const hasSession = (t.sessions || []).some(s => s.completedAt && s.completedAt.startsWith(last));
+                    const completedToday = t.completed && t.completedAt && t.completedAt.startsWith(last);
+                    return hasSession || completedToday;
+                }).map(t => JSON.parse(JSON.stringify(t)));
+
+                if (dayTasks.length || moodLog.length) {
+                    dailyLog.push({ date: last, tasks: dayTasks, moods: moodLog });
                 }
+
                 const remaining = storedTasks.filter(t => !(t.completed && t.completedAt && t.completedAt.startsWith(last)));
                 localStorage.setItem('tasks', JSON.stringify(remaining));
                 localStorage.removeItem('moodLog');
@@ -1194,7 +1212,10 @@
         function hasLog(dateStr) {
             const past = JSON.parse(localStorage.getItem('dailyLog')) || [];
             if (isDateToday(dateStr)) {
-                const tasksToday = tasks.filter(t => t.completed && isDateToday(t.completedAt));
+                const tasksToday = tasks.filter(t => {
+                    if (t.completed && isDateToday(t.completedAt)) return true;
+                    return (!t.completed && (t.sessions || []).some(s => isDateToday(s.completedAt)));
+                });
                 const moodsToday = JSON.parse(localStorage.getItem('moodLog')) || [];
                 return tasksToday.length || moodsToday.length;
             }
@@ -1272,7 +1293,10 @@
             const container = document.getElementById('dailyLogContent');
             container.innerHTML = '';
             const todayStr = new Date().toISOString().split('T')[0];
-            const tasksToday = tasks.filter(t => t.completed && isDateToday(t.completedAt));
+            const tasksToday = tasks.filter(t => {
+                if (t.completed && isDateToday(t.completedAt)) return true;
+                return (!t.completed && (t.sessions || []).some(s => isDateToday(s.completedAt)));
+            });
             const moodsToday = JSON.parse(localStorage.getItem('moodLog')) || [];
             const past = JSON.parse(localStorage.getItem('dailyLog')) || [];
             const log = [];
@@ -1303,14 +1327,25 @@
                     dayDiv.appendChild(p);
                 } else {
                     if (entry.tasks.length) {
-                        entry.tasks.forEach((t) => {
-                            const taskDiv = document.createElement('div');
+                        const doneTasks = entry.tasks.filter(t => t.completed);
+                        const inProg = entry.tasks.filter(t => !t.completed);
+
+                        const createTaskDiv = (t) => {
+                            const div = document.createElement('div');
                             const mins = t.totalTime ? Math.round(t.totalTime / 60) : 0;
                             const sessions = (t.sessions ? t.sessions.length : 0);
-                            taskDiv.innerHTML = `<strong>📝 Task: ${t.task}</strong><br>⏳ Total time: ${mins} mins<br>🧠 Pomodoro sessions: ${sessions}`;
+                            const prefix = t.completed ? '✅' : '🚧';
+                            div.innerHTML = `<strong>${prefix} Task: ${t.task}</strong><br>Total time: ${mins} mins<br>🧠 Pomodoro sessions: ${sessions}`;
 
                             const taskMoods = entry.moods.filter(m => m.task === t.task);
                             if (taskMoods.length) {
+                                const toggle = document.createElement('div');
+                                toggle.className = 'mood-toggle';
+                                toggle.textContent = '🔽 Show moods';
+                                const moodWrap = document.createElement('div');
+                                moodWrap.className = 'task-moods';
+                                moodWrap.style.display = 'none';
+
                                 const generalTaskMoods = taskMoods.filter(m => m.type !== 'midway' && m.type !== 'after');
                                 const midwayTaskMoods = taskMoods.filter(m => m.type === 'midway');
                                 const afterTaskMoods = taskMoods.filter(m => m.type === 'after');
@@ -1320,7 +1355,7 @@
                                     const header = document.createElement('div');
                                     header.className = 'mood-section-title';
                                     header.textContent = title;
-                                    taskDiv.appendChild(header);
+                                    moodWrap.appendChild(header);
                                     const ul = document.createElement('ul');
                                     moods.forEach(m => {
                                         const li = document.createElement('li');
@@ -1344,16 +1379,45 @@
                                         }
                                         ul.appendChild(li);
                                     });
-                                    taskDiv.appendChild(ul);
+                                    moodWrap.appendChild(ul);
                                 };
 
                                 renderMoodList('😊 Moods:', generalTaskMoods);
-                                renderMoodList('⏳ Midway:', midwayTaskMoods);
+                                renderMoodList('Midway:', midwayTaskMoods);
                                 renderMoodList('✅ After:', afterTaskMoods);
+
+                                toggle.addEventListener('click', () => {
+                                    const show = moodWrap.style.display === 'none';
+                                    moodWrap.style.display = show ? 'block' : 'none';
+                                    toggle.textContent = show ? '🔼 Hide moods' : '🔽 Show moods';
+                                });
+
+                                div.appendChild(toggle);
+                                div.appendChild(moodWrap);
                             }
 
-                            dayDiv.appendChild(taskDiv);
-                        });
+                            return div;
+                        };
+
+                        if (doneTasks.length) {
+                            const sec = document.createElement('div');
+                            const head = document.createElement('div');
+                            head.className = 'mood-section-title';
+                            head.textContent = '✔️ Done';
+                            sec.appendChild(head);
+                            doneTasks.forEach(t => sec.appendChild(createTaskDiv(t)));
+                            dayDiv.appendChild(sec);
+                        }
+
+                        if (inProg.length) {
+                            const sec = document.createElement('div');
+                            const head = document.createElement('div');
+                            head.className = 'mood-section-title';
+                            head.textContent = '🚧 In Progress';
+                            sec.appendChild(head);
+                            inProg.forEach(t => sec.appendChild(createTaskDiv(t)));
+                            dayDiv.appendChild(sec);
+                        }
                     }
 
                     const generalMoods = entry.moods.filter(m => !m.task);
@@ -1394,7 +1458,7 @@
                         };
 
                         renderMoodList('Mood Entries:', generalList);
-                        renderMoodList('⏳ Midway:', midwayList);
+                        renderMoodList('Midway:', midwayList);
                         renderMoodList('✅ After:', afterList);
                     }
                 }
