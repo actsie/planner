@@ -1070,9 +1070,9 @@
                     </div>
                     <div class="task-progress"><div class="task-progress-bar" id="minTaskProgressBar"></div></div>
                 </div>
-                <div class="timer-display">
-                    <input id="timerInput" class="timer-input" type="number" min="1" value="25">
-                    <span id="timerDisplay" style="display:none;">25:00</span>
+                <div class="timer-display" id="timerArea">
+                    <span id="timerDisplay">25:00</span>
+                    <input id="timerInput" class="timer-input" type="number" min="1" value="25" style="display:none;">
                 </div>
                 <div class="timer-controls">
                     <button class="timer-btn" id="startTimer">Start</button>
@@ -1853,6 +1853,7 @@
         let totalTime = 25 * 60; // default timer length in seconds
         let timeRemaining = totalTime;
         let isRunning = false;
+        let isEditingTimer = false;
 
         const timerDisplay = document.getElementById('timerDisplay');
         const timerInput = document.getElementById('timerInput');
@@ -1868,21 +1869,44 @@
             const seconds = timeRemaining % 60;
             timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-            if (isRunning) {
+            if (isRunning || !isEditingTimer) {
                 timerDisplay.style.display = 'inline';
-                timerInput.style.display = 'none';
             } else {
                 timerDisplay.style.display = 'none';
+            }
+
+            if (isEditingTimer) {
                 timerInput.style.display = 'inline';
                 timerInput.value = Math.floor(totalTime / 60);
+            } else {
+                timerInput.style.display = 'none';
             }
 
             const progress = ((totalTime - timeRemaining) / totalTime) * 100;
             progressBar.style.width = `${progress}%`;
         }
 
+        function startEditingTimer() {
+            if (isRunning) return;
+            isEditingTimer = true;
+            updateTimerDisplay();
+            timerInput.focus();
+            timerInput.select();
+        }
+
+        function finishEditingTimer() {
+            const minutes = parseInt(timerInput.value);
+            if (minutes && minutes > 0) {
+                totalTime = minutes * 60;
+                timeRemaining = totalTime;
+            }
+            isEditingTimer = false;
+            updateTimerDisplay();
+        }
+
         function startTimer() {
             if (isRunning) return;
+            if (isEditingTimer) finishEditingTimer();
             document.getElementById('focusTaskName').value = '';
             document.getElementById('focusTaskModal').classList.add('active');
         }
@@ -1909,6 +1933,10 @@
         startBtn.addEventListener('click', startTimer);
         pauseBtn.addEventListener('click', pauseTimer);
         resetBtn.addEventListener('click', resetTimer);
+
+        timerDisplay.addEventListener('click', startEditingTimer);
+        timerInput.addEventListener('blur', finishEditingTimer);
+        timerInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') finishEditingTimer(); });
 
         function closeFocusTaskModal() {
             document.getElementById('focusTaskModal').classList.remove('active');
@@ -1953,6 +1981,7 @@
             const taskName = nameInput.value.trim() || 'Focus Session';
             closeFocusTaskModal();
 
+            if (isEditingTimer) finishEditingTimer();
             const minutes = parseInt(timerInput.value) || 25;
             totalTime = minutes * 60;
             timeRemaining = totalTime;
