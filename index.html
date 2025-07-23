@@ -666,6 +666,7 @@
         }
 
         .modal-content {
+            position: relative;
             background: white;
             border-radius: 12px;
             padding: 2rem;
@@ -748,6 +749,17 @@
 
         .modal-btn.secondary:hover {
             background: #d8cfc6;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #e53e3e;
         }
 
         /* Daily Log Panel */
@@ -1074,6 +1086,7 @@
     <!-- Timer Duration Modal -->
     <div class="modal" id="durationModal">
         <div class="modal-content">
+            <button class="modal-close" onclick="closeDurationModal()">❌</button>
             <h3>Select Timer Duration</h3>
             <div class="duration-options">
                 <button class="duration-btn" onclick="selectDuration(5)">5 minutes</button>
@@ -1093,6 +1106,7 @@
     <!-- Add Time Modal -->
     <div class="modal" id="addTimeModal">
         <div class="modal-content">
+            <button class="modal-close" onclick="closeAddTimeModal()">❌</button>
             <h3>Add more time</h3>
             <input type="number" id="addTimeInput" placeholder="Add how many minutes?" value="5" min="1" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
             <div class="modal-actions" style="margin-top:1.5rem;">
@@ -1105,6 +1119,7 @@
     <!-- Task Completion Modal -->
     <div class="modal" id="completionModal">
         <div class="modal-content">
+            <button class="modal-close" onclick="closeCompletionModal()">❌</button>
             <h3>Timer Complete! Did you finish this task?</h3>
             <div class="modal-actions">
                 <button class="modal-btn primary" onclick="completeTask()">✅ Yes</button>
@@ -1117,17 +1132,16 @@
     <!-- Daily Log Modal -->
     <div class="modal" id="dailyLogModal">
         <div class="modal-content">
+            <button class="modal-close" onclick="closeDailyLog()">❌</button>
             <h3>Daily Log</h3>
             <div id="dailyLogContent"></div>
-            <div class="modal-actions">
-                <button class="modal-btn secondary" onclick="closeDailyLog()">Close</button>
-            </div>
         </div>
     </div>
 
     <!-- Mood Reason Modal -->
     <div class="modal" id="moodReasonModal">
         <div class="modal-content">
+            <button class="modal-close" onclick="closeMoodReasonModal()">❌</button>
             <h3>Want to share why you felt this way?</h3>
             <input type="text" id="moodReasonInput" placeholder="Optional reason" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
             <div class="modal-actions" style="margin-top:1.5rem;">
@@ -1140,6 +1154,7 @@
     <!-- Focus Task Name Modal -->
     <div class="modal" id="focusTaskModal">
         <div class="modal-content">
+            <button class="modal-close" onclick="closeFocusTaskModal()">❌</button>
             <h3>Name this focus session</h3>
             <input type="text" id="focusTaskName" placeholder="Task name" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
             <div class="modal-actions" style="margin-top:1.5rem;">
@@ -2453,6 +2468,15 @@
         });
         document.getElementById('addTimeModal').addEventListener('click', (e) => {
             if (e.target.id === 'addTimeModal') closeAddTimeModal();
+        });
+        document.getElementById('durationModal').addEventListener('click', (e) => {
+            if (e.target.id === 'durationModal') closeDurationModal();
+        });
+        document.getElementById('completionModal').addEventListener('click', (e) => {
+            if (e.target.id === 'completionModal') closeCompletionModal();
+        });
+        document.getElementById('dailyLogModal').addEventListener('click', (e) => {
+            if (e.target.id === 'dailyLogModal') closeDailyLog();
         });
 
         // Initialize page
