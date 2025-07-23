@@ -338,6 +338,18 @@
             margin-bottom: 0.25rem;
         }
 
+        .mood-reason {
+            margin-left: 1.2rem;
+            font-style: italic;
+            color: #555;
+        }
+
+        .edit-icon {
+            cursor: pointer;
+            margin-left: 4px;
+            font-size: 0.8rem;
+        }
+
         .link-button {
             background: none;
             border: none;
@@ -1080,6 +1092,8 @@
         let isTaskPaused = false;
         let isTimerMinimized = false;
         let pinnedTaskIndex = null;
+        let pendingMoodType = null;
+        let halfwayPrompted = false;
 
         const monthLabelEl = document.getElementById('monthLabel');
         const dateStripEl = document.getElementById('dateStrip');
@@ -1226,38 +1240,109 @@
                     dayDiv.appendChild(p);
                 } else {
                     if (entry.tasks.length) {
-                        const h = document.createElement('div');
-                        h.innerHTML = '<strong>Completed Tasks:</strong>';
-                        dayDiv.appendChild(h);
-                        const ul = document.createElement('ul');
-                        entry.tasks.forEach(t => {
-                            const li = document.createElement('li');
+                        entry.tasks.forEach((t) => {
+                            const taskDiv = document.createElement('div');
                             const mins = t.totalTime ? Math.round(t.totalTime / 60) : 0;
                             const sessions = (t.sessions ? t.sessions.length : 0);
-                            li.textContent = `${t.task} – ⌛️ ${mins} mins – 🧠 ${sessions} sessions`;
-                            ul.appendChild(li);
+                            taskDiv.innerHTML = `<strong>📝 Task: ${t.task}</strong><br>⏳ Total time: ${mins} mins<br>🧠 Pomodoro sessions: ${sessions}`;
+
+                            const taskMoods = entry.moods.filter(m => m.task === t.task);
+                            if (taskMoods.length) {
+                                const moodHeader = document.createElement('div');
+                                moodHeader.innerHTML = '<em>😊 Moods:</em>';
+                                taskDiv.appendChild(moodHeader);
+                                const ul = document.createElement('ul');
+                                taskMoods.forEach((m) => {
+                                    const li = document.createElement('li');
+                                    const time = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                                    const labelMap = { before: '💡 Before', midway: '⏳ Midway', after: '✅ After' };
+                                    const minsInto = (m.minutesIntoTask !== undefined && m.minutesIntoTask !== null) ? ` (${m.minutesIntoTask} min)` : '';
+                                    li.innerHTML = `${labelMap[m.type] || ''}: ${m.mood} ${time}${minsInto}`;
+                                    if (m.reason) {
+                                        const reasonDiv = document.createElement('div');
+                                        reasonDiv.className = 'mood-reason';
+                                        reasonDiv.textContent = `"${m.reason}"`;
+                                        li.appendChild(reasonDiv);
+                                    }
+                                    if (['😐','😩','😠'].includes(m.mood)) {
+                                        const edit = document.createElement('span');
+                                        edit.textContent = '🖊️';
+                                        edit.classList.add('edit-icon');
+                                        edit.dataset.day = entry.date;
+                                        edit.dataset.index = entry.moods.indexOf(m);
+                                        edit.addEventListener('click', () => editMoodReason(edit.dataset.day, edit.dataset.index));
+                                        li.appendChild(edit);
+                                    }
+                                    ul.appendChild(li);
+                                });
+                                taskDiv.appendChild(ul);
+                            }
+
+                            dayDiv.appendChild(taskDiv);
                         });
-                        dayDiv.appendChild(ul);
                     }
-                    if (entry.moods.length) {
+
+                    const generalMoods = entry.moods.filter(m => !m.task);
+                    if (generalMoods.length) {
                         const h = document.createElement('div');
                         h.innerHTML = '<strong>Mood Entries:</strong>';
                         dayDiv.appendChild(h);
                         const ul = document.createElement('ul');
-                        entry.moods.forEach(m => {
+                        generalMoods.forEach(m => {
                             const li = document.createElement('li');
                             const time = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                            const taskInfo = m.task ? ` – ${m.task}` : '';
-                            li.textContent = `${m.mood} ${time}${taskInfo}`;
+                            const labelMap = { before: '💡 Before', midway: '⏳ Midway', after: '✅ After' };
+                            const minsInto = (m.minutesIntoTask !== undefined && m.minutesIntoTask !== null) ? ` (${m.minutesIntoTask} min)` : '';
+                            li.innerHTML = `${labelMap[m.type] || ''}: ${m.mood} ${time}${minsInto}`;
+                            if (m.reason) {
+                                const reasonDiv = document.createElement('div');
+                                reasonDiv.className = 'mood-reason';
+                                reasonDiv.textContent = `"${m.reason}"`;
+                                li.appendChild(reasonDiv);
+                            }
+                            if (['😐','😩','😠'].includes(m.mood)) {
+                                const edit = document.createElement('span');
+                                edit.textContent = '🖊️';
+                                edit.classList.add('edit-icon');
+                                edit.dataset.day = entry.date;
+                                edit.dataset.index = entry.moods.indexOf(m);
+                                edit.addEventListener('click', () => editMoodReason(edit.dataset.day, edit.dataset.index));
+                                li.appendChild(edit);
+                            }
                             ul.appendChild(li);
                         });
                         dayDiv.appendChild(ul);
                     }
                 }
 
-                container.appendChild(dayDiv);
-            });
+            container.appendChild(dayDiv);
+        });
+    }
+
+    function editMoodReason(day, index) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (day === todayStr) {
+            let moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            const entry = moodLog[index];
+            const reason = prompt('Update reason', entry.reason || '');
+            if (reason !== null) {
+                moodLog[index].reason = reason;
+                localStorage.setItem('moodLog', JSON.stringify(moodLog));
+                loadDailyLog(day);
+            }
+        } else {
+            let dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
+            const logEntry = dailyLog.find(e => e.date === day);
+            if (!logEntry) return;
+            const entry = logEntry.moods[index];
+            const reason = prompt('Update reason', entry.reason || '');
+            if (reason !== null) {
+                logEntry.moods[index].reason = reason;
+                localStorage.setItem('dailyLog', JSON.stringify(dailyLog));
+                loadDailyLog(day);
+            }
         }
+    }
 
         function loadTasks() {
             taskList.innerHTML = '';
@@ -1467,7 +1552,8 @@
 
             const last = moodLog[moodLog.length - 1];
             const lastTime = new Date(last.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-            const taskInfoLast = last.task ? `During "${last.task}" (${last.elapsed} min in)` : 'No task active';
+            const lastElapsed = (last.minutesIntoTask !== null && last.minutesIntoTask !== undefined) ? last.minutesIntoTask : last.elapsed;
+            const taskInfoLast = last.task ? `During "${last.task}" (${lastElapsed} min in)` : 'No task active';
             moodHistory.textContent = `Latest mood: ${last.mood} – ${lastTime} – ${taskInfoLast}`;
 
             const entries = showAllMoodLog ? moodLog.slice() : moodLog.slice(-7);
@@ -1475,7 +1561,8 @@
             entries.reverse().forEach(entry => {
                 const div = document.createElement('div');
                 div.classList.add('mood-timeline-entry');
-                const taskInfo = entry.task ? `During "${entry.task}" (${entry.elapsed} min in)` : 'No task active';
+                const eElapsed = (entry.minutesIntoTask !== null && entry.minutesIntoTask !== undefined) ? entry.minutesIntoTask : entry.elapsed;
+                const taskInfo = entry.task ? `During "${entry.task}" (${eElapsed} min in)` : 'No task active';
                 div.textContent = `${entry.mood} – ${formatTime(entry.date)} – ${taskInfo}`;
                 moodTimeline.appendChild(div);
             });
@@ -1493,24 +1580,39 @@
                 let moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
 
                 let taskName = null;
-                let elapsed = null;
+                let minutesIntoTask = null;
                 if (taskTimerInterval && currentTaskIndex !== null) {
                     const task = tasks[currentTaskIndex];
                     if (task) {
                         taskName = task.task;
-                        elapsed = Math.floor((selectedDuration * 60 - taskTimeRemaining) / 60);
+                        minutesIntoTask = Math.floor((selectedDuration * 60 - taskTimeRemaining) / 60);
                     }
+                }
+
+                let moodType = pendingMoodType || ((taskTimerInterval || isTaskPaused) ? 'midway' : 'before');
+                if (moodType === 'after') {
+                    minutesIntoTask = Math.floor(taskOriginalDuration / 60);
+                } else if (moodType === 'before') {
+                    minutesIntoTask = 0;
+                }
+
+                let reason = null;
+                if (['😐','😩','😠'].includes(this.dataset.mood)) {
+                    reason = prompt('Want to add a reason?');
                 }
 
                 moodLog.push({
                     date: now.toISOString(),
                     mood: this.dataset.mood,
                     task: taskName,
-                    elapsed: elapsed
+                    minutesIntoTask: minutesIntoTask,
+                    type: moodType,
+                    reason: reason
                 });
 
                 localStorage.setItem('moodLog', JSON.stringify(moodLog));
                 updateMoodHistory();
+                pendingMoodType = null;
             });
         });
 
@@ -1887,6 +1989,9 @@
         function startTaskCountdown() {
             if (currentTaskIndex === null) return;
 
+            pendingMoodType = null;
+            halfwayPrompted = false;
+
             const task = tasks[currentTaskIndex];
             taskOriginalDuration = selectedDuration * 60;
             taskTimeRemaining = taskOriginalDuration;
@@ -1918,6 +2023,11 @@
             taskTimerInterval = setInterval(() => {
                 if (taskTimeRemaining > 0) {
                     taskTimeRemaining--;
+                    if (!halfwayPrompted && taskTimeRemaining <= taskOriginalDuration / 2) {
+                        halfwayPrompted = true;
+                        alert('Halfway there! How are you feeling? Select a mood.');
+                        pendingMoodType = 'midway';
+                    }
                     updateTaskTimerDisplay();
                 } else {
                     clearInterval(taskTimerInterval);
@@ -1950,7 +2060,10 @@
             const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGG2S48+OZURE');
             audio.volume = 0.3;
             audio.play().catch(() => {});
-            
+
+            pendingMoodType = 'after';
+            alert('How did that feel? Select a mood.');
+
             pinnedTaskIndex = null;
             document.getElementById('completionModal').classList.add('active');
             loadTasks();
