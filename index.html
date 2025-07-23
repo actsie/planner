@@ -48,6 +48,82 @@
             min-height: 2rem;
         }
 
+        .date-strip-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .month-label {
+            cursor: pointer;
+            user-select: none;
+            font-weight: 500;
+        }
+
+        .date-strip {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding: 0.25rem 0;
+        }
+
+        .date-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            min-width: 40px;
+            font-size: 0.75rem;
+        }
+
+        .date-item.today {
+            background: #f0f4f3;
+            box-shadow: 0 0 4px rgba(0,0,0,0.1);
+        }
+
+        .log-icon {
+            font-size: 0.7rem;
+        }
+
+        .month-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 0.5rem;
+            z-index: 10;
+            display: none;
+        }
+
+        .month-dropdown.active {
+            display: block;
+        }
+
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem;
+        }
+
+        .month-day {
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 0.75rem;
+        }
+
+        .month-day.today {
+            background: #f0f4f3;
+        }
+
         .main-content {
             display: grid;
             gap: 2rem;
@@ -816,6 +892,12 @@
             <p class="quote" id="quoteDisplay"></p>
         </header>
 
+        <div class="date-strip-wrapper">
+            <div id="monthLabel" class="month-label">Month ▾</div>
+            <div id="dateStrip" class="date-strip"></div>
+            <div id="monthDropdown" class="month-dropdown"></div>
+        </div>
+
         <div class="main-content">
             <div class="card">
                 <h2>Today's Tasks <button id="openDailyLog" class="link-button">Logs</button></h2>
@@ -999,6 +1081,10 @@
         let isTimerMinimized = false;
         let pinnedTaskIndex = null;
 
+        const monthLabelEl = document.getElementById('monthLabel');
+        const dateStripEl = document.getElementById('dateStrip');
+        const monthDropdownEl = document.getElementById('monthDropdown');
+
         function isDateToday(dateStr) {
             if (!dateStr) return false;
             const d = new Date(dateStr);
@@ -1028,8 +1114,76 @@
             localStorage.setItem('lastLogDate', todayStr);
         }
 
-        function openDailyLog() {
-            loadDailyLog();
+        function hasLog(dateStr) {
+            const past = JSON.parse(localStorage.getItem('dailyLog')) || [];
+            if (isDateToday(dateStr)) {
+                const tasksToday = tasks.filter(t => t.completed && isDateToday(t.completedAt));
+                const moodsToday = JSON.parse(localStorage.getItem('moodLog')) || [];
+                return tasksToday.length || moodsToday.length;
+            }
+            const entry = past.find(e => e.date === dateStr);
+            return entry && (entry.tasks.length || entry.moods.length);
+        }
+
+        function renderDateStrip() {
+            const today = new Date();
+            const start = new Date(today);
+            start.setDate(today.getDate() - 3);
+            dateStripEl.innerHTML = '';
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(start);
+                d.setDate(start.getDate() + i);
+                const dateStr = d.toISOString().split('T')[0];
+                const item = document.createElement('div');
+                item.classList.add('date-item');
+                if (isDateToday(dateStr)) item.classList.add('today');
+                item.innerHTML = `<div>${d.toLocaleDateString(undefined,{weekday:'short'})}</div><div>${d.getDate()}</div>`;
+                if (hasLog(dateStr)) {
+                    const icon = document.createElement('span');
+                    icon.textContent = '📘';
+                    icon.classList.add('log-icon');
+                    item.appendChild(icon);
+                }
+                item.addEventListener('click', () => openDailyLog(dateStr));
+                dateStripEl.appendChild(item);
+            }
+            monthLabelEl.textContent = today.toLocaleDateString(undefined,{month:'long'}) + ' ▾';
+        }
+
+        function toggleMonthDropdown() {
+            monthDropdownEl.classList.toggle('active');
+            if (monthDropdownEl.classList.contains('active')) {
+                renderMonthGrid();
+            }
+        }
+
+        function renderMonthGrid() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            const first = new Date(year, month, 1);
+            const last = new Date(year, month + 1, 0);
+            monthDropdownEl.innerHTML = '';
+            const grid = document.createElement('div');
+            grid.className = 'month-grid';
+            for (let i = 1; i <= last.getDate(); i++) {
+                const d = new Date(year, month, i);
+                const dateStr = d.toISOString().split('T')[0];
+                const dayDiv = document.createElement('div');
+                dayDiv.classList.add('month-day');
+                if (isDateToday(dateStr)) dayDiv.classList.add('today');
+                dayDiv.textContent = i;
+                if (hasLog(dateStr)) {
+                    dayDiv.innerHTML = `<span>${i}</span><span class='log-icon'>📘</span>`;
+                }
+                dayDiv.addEventListener('click', () => { openDailyLog(dateStr); monthDropdownEl.classList.remove('active'); });
+                grid.appendChild(dayDiv);
+            }
+            monthDropdownEl.appendChild(grid);
+        }
+
+        function openDailyLog(dateStr) {
+            loadDailyLog(dateStr);
             document.getElementById('dailyLogModal').classList.add('active');
         }
 
@@ -1037,17 +1191,27 @@
             document.getElementById('dailyLogModal').classList.remove('active');
         }
 
-        function loadDailyLog() {
+        function loadDailyLog(dateStr) {
             const container = document.getElementById('dailyLogContent');
             container.innerHTML = '';
             const todayStr = new Date().toISOString().split('T')[0];
-            const log = [];
             const tasksToday = tasks.filter(t => t.completed && isDateToday(t.completedAt));
             const moodsToday = JSON.parse(localStorage.getItem('moodLog')) || [];
-            log.push({ date: todayStr, tasks: tasksToday, moods: moodsToday });
             const past = JSON.parse(localStorage.getItem('dailyLog')) || [];
-            past.sort((a,b) => new Date(b.date) - new Date(a.date));
-            log.push(...past);
+            const log = [];
+
+            if (dateStr) {
+                if (dateStr === todayStr) {
+                    log.push({ date: todayStr, tasks: tasksToday, moods: moodsToday });
+                } else {
+                    const entry = past.find(e => e.date === dateStr);
+                    log.push(entry || { date: dateStr, tasks: [], moods: [] });
+                }
+            } else {
+                log.push({ date: todayStr, tasks: tasksToday, moods: moodsToday });
+                past.sort((a,b) => new Date(b.date) - new Date(a.date));
+                log.push(...past);
+            }
 
             log.forEach(entry => {
                 const dayDiv = document.createElement('div');
@@ -1929,9 +2093,11 @@
             updateTimerDisplay();
             updateFocusTimerVisibility();
             loadNotes();
+            renderDateStrip();
         };
 
-        openDailyLogBtn.addEventListener('click', openDailyLog);
+        openDailyLogBtn.addEventListener('click', () => openDailyLog());
+        monthLabelEl.addEventListener('click', toggleMonthDropdown);
     </script>
 </body>
 </html>
