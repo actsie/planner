@@ -281,6 +281,30 @@
             border-radius: 4px;
         }
 
+        .in-progress-tag {
+            background: #fff3cd;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+
+        .break-checklist {
+            margin-left: 1.5rem;
+            font-size: 0.85rem;
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .add-break-item {
+            margin-left: 1.5rem;
+            color: #a65b3a;
+            cursor: pointer;
+            font-size: 0.8rem;
+            background: none;
+            border: none;
+        }
+
         .task-tags {
             display: flex;
             gap: 6px;
@@ -885,6 +909,11 @@
             padding: 0.25rem;
             border: 1px solid #e8dfd6;
             border-radius: 4px;
+            color: #555;
+        }
+
+        .break-input::placeholder {
+            color: #bbb;
         }
 
         .floating-msg {
@@ -1188,11 +1217,11 @@
             <div id="breakSuggestion" style="display:none;margin-top:1.5rem;">
                 <p style="margin-bottom:0.5rem;">💬 Sounds like it might be time for a break. Want to try breaking your task down first?</p>
                 <div id="breakSteps">
-                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" value="tiny next step"></div>
-                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" value="another small step"></div>
-                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" value="ok one last piece"></div>
+                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="break task 1…"></div>
+                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="break task 2…"></div>
+                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="break task 3…"></div>
                 </div>
-                <button id="addBreakStep" style="margin-top:0.5rem;">+ Add</button>
+                <button id="addBreakStep" class="add-break-item">➕ Add</button>
                 <div style="margin-top:0.5rem;">Take a break for: <input type="number" id="breakDuration" value="15" min="1" style="width:60px;"> min</div>
                 <button class="modal-btn primary" id="startBreakBtn" style="margin-top:0.5rem;">Start Break</button>
             </div>
@@ -1260,7 +1289,7 @@
 
     <div class="task-timer-display" id="breakTimerDisplay" style="display:none;background:#e3f2fd;">
         <button class="minimize-btn" onclick="cancelBreakTimer()">✖️</button>
-        <div class="task-timer-title">Break Time</div>
+        <div class="task-timer-title">Break Time ☕️</div>
         <div class="task-timer-time" id="breakTimerTime"></div>
         <div class="task-progress"><div class="task-progress-bar" id="breakProgressBar"></div></div>
     </div>
@@ -1681,6 +1710,15 @@
                 const tagsBlock = activeTag || timeTag ? `<div class='task-tags'>${activeTag}${timeTag}</div>` : '';
                 if (tagsBlock) li.classList.add('tagged-task');
 
+                const breakData = task.activeBreak;
+
+                const checklistHtml = breakData && breakData.items.length ?
+                    `<div class='in-progress-tag'>🟡 In Progress</div>` +
+                    `<ul class='break-checklist'>` +
+                    breakData.items.map((it,i) => `<li><label><input type='checkbox' ${it.done ? 'checked' : ''} onchange='toggleBreakItem(${idx},${i})'> ${it.text}</label></li>`).join('') +
+                    `</ul><button class='add-break-item' onclick='addBreakListItem(${idx})'>➕ Add</button>`
+                    : '';
+
                 li.innerHTML = `
                     ${tagsBlock}
                     <div class='task-header'>
@@ -1689,6 +1727,7 @@
                         <button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>
                         <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
                     </div>
+                    ${checklistHtml}
                 `;
 
                 taskList.appendChild(li);
@@ -1810,6 +1849,26 @@
             loadTasks();
         }
 
+        function toggleBreakItem(tIndex, iIndex) {
+            const items = tasks[tIndex].activeBreak?.items;
+            if (!items) return;
+            items[iIndex].done = !items[iIndex].done;
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+        }
+
+        function addBreakListItem(tIndex) {
+            const text = prompt('Add break task');
+            if (text) {
+                if (!tasks[tIndex].activeBreak) {
+                    tasks[tIndex].activeBreak = { id: Date.now(), items: [] };
+                }
+                tasks[tIndex].activeBreak.items.push({ text, done: false });
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                loadTasks();
+            }
+        }
+
         // Add task on Enter key
         taskInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -1825,6 +1884,7 @@
         const moodTimeline = document.getElementById('moodTimeline');
         const toggleMoodLogBtn = document.getElementById('toggleMoodLog');
         let showAllMoodLog = false;
+        let autoPausedByMood = false;
 
         function loadTodaysMood() {
             const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
@@ -1917,6 +1977,11 @@
                     updateMoodHistory();
                     pendingMoodType = null;
                 };
+
+                if (['😩','😠'].includes(this.dataset.mood) && taskTimerInterval) {
+                    pauseTaskTimer();
+                    autoPausedByMood = true;
+                }
 
                 if (['😐','😩','😠'].includes(this.dataset.mood)) {
                     openMoodReasonModal('', finalize, this.dataset.mood);
@@ -2069,14 +2134,39 @@
             const container = document.getElementById('breakSteps');
             const div = document.createElement('div');
             div.className = 'break-item';
-            div.innerHTML = "<input type='checkbox'><input type='text' class='break-input' value=''>";
+            div.innerHTML = "<input type='checkbox'><input type='text' class='break-input' placeholder='another break task…'>";
             container.appendChild(div);
         });
 
         document.getElementById('startBreakBtn').addEventListener('click', () => {
             const duration = parseInt(document.getElementById('breakDuration').value) || 15;
+
+            const stepInputs = Array.from(document.querySelectorAll('#breakSteps .break-input'));
+            const steps = stepInputs.map(el => el.value.trim()).filter(v => v);
+
+            if (steps.length) {
+                if (currentTaskIndex !== null) {
+                    tasks[currentTaskIndex].activeBreak = {
+                        id: Date.now(),
+                        items: steps.map(t => ({ text: t, done: false }))
+                    };
+                    localStorage.setItem('tasks', JSON.stringify(tasks));
+                    loadTasks();
+                } else {
+                    if (confirm('Add as standalone tasks to Today\'s Tasks?')) {
+                        steps.forEach(t => tasks.push({ task: t }));
+                        localStorage.setItem('tasks', JSON.stringify(tasks));
+                        loadTasks();
+                    }
+                }
+            }
+
             closeMoodReasonModal();
             startBreakTimer(duration);
+            if (autoPausedByMood) {
+                alert('⏸️ Paused your task while you take a break 🧘‍♀️');
+                autoPausedByMood = false;
+            }
             if (moodReasonCallback) moodReasonCallback(document.getElementById('moodReasonInput').value.trim());
         });
 
@@ -2659,7 +2749,15 @@
         function completeBreak() {
             document.getElementById('breakTimerDisplay').style.display = 'none';
             const breakLog = JSON.parse(localStorage.getItem('breakLog')) || [];
-            breakLog.push({ date: new Date().toISOString(), duration: breakOriginalDuration / 60 });
+            const entry = { date: new Date().toISOString(), duration: breakOriginalDuration / 60 };
+            if (currentTaskIndex !== null && tasks[currentTaskIndex].activeBreak) {
+                entry.taskId = currentTaskIndex;
+                entry.checklist = tasks[currentTaskIndex].activeBreak.items;
+                delete tasks[currentTaskIndex].activeBreak;
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                loadTasks();
+            }
+            breakLog.push(entry);
             localStorage.setItem('breakLog', JSON.stringify(breakLog));
         }
 
