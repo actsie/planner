@@ -873,6 +873,20 @@
             font-size: 1rem;
         }
 
+        .break-item {
+            display: flex;
+            align-items: center;
+            margin-top: 0.25rem;
+        }
+
+        .break-input {
+            margin-left: 0.5rem;
+            flex: 1;
+            padding: 0.25rem;
+            border: 1px solid #e8dfd6;
+            border-radius: 4px;
+        }
+
         .floating-msg {
             font-size: 0.85rem;
             color: #a0aec0;
@@ -991,6 +1005,14 @@
 
         .log-task-section.in-progress .mood-section-title {
             color: #fbc02d;
+        }
+
+        .log-task-section.breaks {
+            background: #e3f2fd;
+        }
+
+        .log-task-section.breaks .mood-section-title {
+            color: #2196f3;
         }
     </style>
 </head>
@@ -1163,6 +1185,17 @@
             <button class="modal-close" onclick="closeMoodReasonModal()">❌</button>
             <h3>Want to share why you felt this way?</h3>
             <input type="text" id="moodReasonInput" placeholder="Optional reason" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
+            <div id="breakSuggestion" style="display:none;margin-top:1.5rem;">
+                <p style="margin-bottom:0.5rem;">💬 Sounds like it might be time for a break. Want to try breaking your task down first?</p>
+                <div id="breakSteps">
+                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" value="tiny next step"></div>
+                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" value="another small step"></div>
+                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" value="ok one last piece"></div>
+                </div>
+                <button id="addBreakStep" style="margin-top:0.5rem;">+ Add</button>
+                <div style="margin-top:0.5rem;">Take a break for: <input type="number" id="breakDuration" value="15" min="1" style="width:60px;"> min</div>
+                <button class="modal-btn primary" id="startBreakBtn" style="margin-top:0.5rem;">Start Break</button>
+            </div>
             <div class="modal-actions" style="margin-top:1.5rem;">
                 <button class="modal-btn primary" id="saveMoodReason">Save</button>
                 <button class="modal-btn secondary" id="skipMoodReason">Skip</button>
@@ -1223,6 +1256,13 @@
         <div class="task-timer-title" id="taskTimerTitle"></div>
         <div class="task-timer-time" id="taskTimerTime"></div>
         <div class="task-progress"><div class="task-progress-bar" id="taskProgressBar"></div></div>
+    </div>
+
+    <div class="task-timer-display" id="breakTimerDisplay" style="display:none;background:#e3f2fd;">
+        <button class="minimize-btn" onclick="cancelBreakTimer()">✖️</button>
+        <div class="task-timer-title">Break Time</div>
+        <div class="task-timer-time" id="breakTimerTime"></div>
+        <div class="task-progress"><div class="task-progress-bar" id="breakProgressBar"></div></div>
     </div>
 
     <script>
@@ -1286,6 +1326,7 @@
             if (last && last !== todayStr) {
                 const dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
                 const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+                const breakLog = JSON.parse(localStorage.getItem('breakLog')) || [];
                 const storedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
 
                 const dayTasks = storedTasks.filter(t => {
@@ -1294,13 +1335,14 @@
                     return hasSession || completedToday;
                 }).map(t => JSON.parse(JSON.stringify(t)));
 
-                if (dayTasks.length || moodLog.length) {
-                    dailyLog.push({ date: last, tasks: dayTasks, moods: moodLog });
+                if (dayTasks.length || moodLog.length || breakLog.length) {
+                    dailyLog.push({ date: last, tasks: dayTasks, moods: moodLog, breaks: breakLog });
                 }
 
                 const remaining = storedTasks.filter(t => !(t.completed && t.completedAt && t.completedAt.startsWith(last)));
                 localStorage.setItem('tasks', JSON.stringify(remaining));
                 localStorage.removeItem('moodLog');
+                localStorage.removeItem('breakLog');
                 localStorage.setItem('dailyLog', JSON.stringify(dailyLog));
                 tasks = remaining;
             }
@@ -1315,10 +1357,11 @@
                     return (!t.completed && (t.sessions || []).some(s => isDateToday(s.completedAt)));
                 });
                 const moodsToday = JSON.parse(localStorage.getItem('moodLog')) || [];
-                return tasksToday.length || moodsToday.length;
+                const breaksToday = JSON.parse(localStorage.getItem('breakLog')) || [];
+                return tasksToday.length || moodsToday.length || breaksToday.length;
             }
             const entry = past.find(e => e.date === dateStr);
-            return entry && (entry.tasks.length || entry.moods.length);
+            return entry && (entry.tasks.length || entry.moods.length || (entry.breaks && entry.breaks.length));
         }
 
         function renderDateStrip() {
@@ -1396,18 +1439,19 @@
                 return (!t.completed && (t.sessions || []).some(s => isDateToday(s.completedAt)));
             });
             const moodsToday = JSON.parse(localStorage.getItem('moodLog')) || [];
+            const breaksToday = JSON.parse(localStorage.getItem('breakLog')) || [];
             const past = JSON.parse(localStorage.getItem('dailyLog')) || [];
             const log = [];
 
             if (dateStr) {
                 if (dateStr === todayStr) {
-                    log.push({ date: todayStr, tasks: tasksToday, moods: moodsToday });
+                    log.push({ date: todayStr, tasks: tasksToday, moods: moodsToday, breaks: breaksToday });
                 } else {
                     const entry = past.find(e => e.date === dateStr);
                     log.push(entry || { date: dateStr, tasks: [], moods: [] });
                 }
             } else {
-                log.push({ date: todayStr, tasks: tasksToday, moods: moodsToday });
+                log.push({ date: todayStr, tasks: tasksToday, moods: moodsToday, breaks: breaksToday });
                 past.sort((a,b) => new Date(b.date) - new Date(a.date));
                 log.push(...past);
             }
@@ -1419,7 +1463,7 @@
                 dateHeader.textContent = new Date(entry.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
                 dayDiv.appendChild(dateHeader);
 
-                if (!entry.tasks.length && !entry.moods.length) {
+                if (!entry.tasks.length && !entry.moods.length && !(entry.breaks && entry.breaks.length)) {
                     const p = document.createElement('p');
                     p.textContent = "No tasks completed. That's okay. Rest counts too. 🌱";
                     dayDiv.appendChild(p);
@@ -1561,6 +1605,24 @@
                         renderMoodList('Mood Entries:', generalList);
                         renderMoodList('Midway:', midwayList);
                         renderMoodList('✅ After:', afterList);
+                    }
+
+                    if (entry.breaks && entry.breaks.length) {
+                        const sec = document.createElement('div');
+                        sec.classList.add('log-task-section', 'breaks');
+                        const head = document.createElement('div');
+                        head.className = 'mood-section-title';
+                        head.textContent = '☕️ Breaks';
+                        sec.appendChild(head);
+                        const ul = document.createElement('ul');
+                        entry.breaks.forEach(b => {
+                            const li = document.createElement('li');
+                            const time = new Date(b.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                            li.textContent = `Break 🧘 – ${b.duration} mins at ${time}`;
+                            ul.appendChild(li);
+                        });
+                        sec.appendChild(ul);
+                        dayDiv.appendChild(sec);
                     }
                 }
 
@@ -1857,7 +1919,7 @@
                 };
 
                 if (['😐','😩','😠'].includes(this.dataset.mood)) {
-                    openMoodReasonModal('', finalize);
+                    openMoodReasonModal('', finalize, this.dataset.mood);
                 } else {
                     finalize(null);
                 }
@@ -1966,13 +2028,19 @@
 
         let moodReasonCallback = null;
 
-        function openMoodReasonModal(initial, cb) {
+        function openMoodReasonModal(initial, cb, mood) {
             moodReasonCallback = cb;
             const modal = document.getElementById('moodReasonModal');
             const input = document.getElementById('moodReasonInput');
             input.value = initial || '';
             modal.classList.add('active');
             input.focus();
+            const suggestion = document.getElementById('breakSuggestion');
+            if (mood === '😩' || mood === '😠') {
+                suggestion.style.display = 'block';
+            } else {
+                suggestion.style.display = 'none';
+            }
         }
 
         function closeMoodReasonModal() {
@@ -1995,6 +2063,21 @@
                 closeMoodReasonModal();
                 if (moodReasonCallback) moodReasonCallback(null);
             }
+        });
+
+        document.getElementById('addBreakStep').addEventListener('click', () => {
+            const container = document.getElementById('breakSteps');
+            const div = document.createElement('div');
+            div.className = 'break-item';
+            div.innerHTML = "<input type='checkbox'><input type='text' class='break-input' value=''>";
+            container.appendChild(div);
+        });
+
+        document.getElementById('startBreakBtn').addEventListener('click', () => {
+            const duration = parseInt(document.getElementById('breakDuration').value) || 15;
+            closeMoodReasonModal();
+            startBreakTimer(duration);
+            if (moodReasonCallback) moodReasonCallback(document.getElementById('moodReasonInput').value.trim());
         });
 
         document.getElementById('startFocusTask').addEventListener('click', () => {
@@ -2536,6 +2619,49 @@
         document.getElementById('addTimeInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') confirmAddTime();
         });
+
+        let breakTimerInterval = null;
+        let breakOriginalDuration = 0;
+        let breakTimeRemaining = 0;
+
+        function startBreakTimer(mins) {
+            breakOriginalDuration = (mins + 1) * 60;
+            breakTimeRemaining = breakOriginalDuration;
+            updateBreakTimerDisplay();
+            document.getElementById('breakTimerDisplay').style.display = 'block';
+            alert('🐧 Presently Assistant here!\nHope you don\'t mind, I added 1 extra minute to your break… just \u2019cause you deserve it.');
+            breakTimerInterval = setInterval(() => {
+                if (breakTimeRemaining > 0) {
+                    breakTimeRemaining--;
+                    updateBreakTimerDisplay();
+                } else {
+                    clearInterval(breakTimerInterval);
+                    breakTimerInterval = null;
+                    completeBreak();
+                }
+            }, 1000);
+        }
+
+        function updateBreakTimerDisplay() {
+            const minutes = Math.floor(breakTimeRemaining / 60);
+            const seconds = breakTimeRemaining % 60;
+            document.getElementById('breakTimerTime').textContent = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+            const progress = ((breakOriginalDuration - breakTimeRemaining) / breakOriginalDuration) * 100;
+            document.getElementById('breakProgressBar').style.width = `${progress}%`;
+        }
+
+        function cancelBreakTimer() {
+            if (breakTimerInterval) clearInterval(breakTimerInterval);
+            breakTimerInterval = null;
+            document.getElementById('breakTimerDisplay').style.display = 'none';
+        }
+
+        function completeBreak() {
+            document.getElementById('breakTimerDisplay').style.display = 'none';
+            const breakLog = JSON.parse(localStorage.getItem('breakLog')) || [];
+            breakLog.push({ date: new Date().toISOString(), duration: breakOriginalDuration / 60 });
+            localStorage.setItem('breakLog', JSON.stringify(breakLog));
+        }
 
         let moodPromptType = null;
         let moodPromptSelected = null;
