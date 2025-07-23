@@ -296,6 +296,27 @@
             padding-left: 0;
         }
 
+        .break-checklist li.completed span {
+            color: #a0aec0;
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+
+        .checklist-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            margin-left: 0.25rem;
+            font-size: 0.85rem;
+        }
+
+        .break-error {
+            color: #e53e3e;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+            display: none;
+        }
+
         .add-break-item {
             margin-left: 1.5rem;
             color: #a65b3a;
@@ -1186,6 +1207,20 @@
         </div>
     </div>
 
+    <!-- Add Break Task Modal -->
+    <div class="modal unified-modal" id="addBreakTaskModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeBreakTaskModal()">❌</button>
+            <h3>🧩 Broken Down Tasks</h3>
+            <p class="floating-msg">Add small sub-tasks so you know exactly where to pick up when you’re back.</p>
+            <input type="text" id="breakTaskInput" placeholder="e.g., write intro paragraph" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
+            <div class="modal-actions" style="margin-top:1.5rem;">
+                <button class="modal-btn primary" onclick="saveBreakTask()">Add</button>
+                <button class="modal-btn secondary" onclick="closeBreakTaskModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Task Completion Modal -->
     <div class="modal unified-modal" id="completionModal">
         <div class="modal-content">
@@ -1217,17 +1252,24 @@
             <div id="breakSuggestion" style="display:none;margin-top:1.5rem;">
                 <p style="margin-bottom:0.5rem;">💬 Sounds like it might be time for a break. Want to try breaking your task down first?</p>
                 <div id="breakSteps">
-                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="break task 1…"></div>
-                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="break task 2…"></div>
+                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="e.g., write intro paragraph"></div>
+                    <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="e.g., add tweet image"></div>
                     <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="break task 3…"></div>
                 </div>
                 <button id="addBreakStep" class="add-break-item">➕ Add</button>
-                <div style="margin-top:0.5rem;">Take a break for: <input type="number" id="breakDuration" value="15" min="1" style="width:60px;"> min</div>
-                <button class="modal-btn primary" id="startBreakBtn" style="margin-top:0.5rem;">Start Break</button>
+                <div class="break-duration-row" style="margin-top:0.5rem; display:flex; align-items:center; gap:0.5rem;">
+                    <span>Take a break for:</span>
+                    <input type="number" id="breakDuration" value="15" min="1" style="width:60px;">
+                    <span>min</span>
+                    <button class="modal-btn primary" id="startBreakBtn">Start Break</button>
+                </div>
+                <div id="breakError" class="break-error"></div>
             </div>
             <div class="modal-actions" style="margin-top:1.5rem;">
-                <button class="modal-btn primary" id="saveMoodReason">Save</button>
-                <button class="modal-btn secondary" id="skipMoodReason">Skip</button>
+                <button class="modal-btn primary" id="saveMoodReason">Save Tasks Only</button>
+                <div class="floating-msg">Save without starting break</div>
+                <button class="modal-btn secondary" id="skipMoodReason">Cancel</button>
+                <div class="floating-msg">Skip without saving anything</div>
             </div>
         </div>
     </div>
@@ -1320,6 +1362,7 @@
 
         // To-Do List functionality
         let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        let pendingBreakTaskIndex = null;
         const taskList = document.getElementById('taskList');
         const taskInput = document.getElementById('taskInput');
         const addTaskButton = document.getElementById('addTask');
@@ -1711,11 +1754,14 @@
                 if (tagsBlock) li.classList.add('tagged-task');
 
                 const breakData = task.activeBreak;
-
+                const collapsed = task.checklistCollapsed;
+                const toggleBtn = breakData && breakData.items.length ?
+                    `<button class='checklist-toggle' onclick='toggleChecklist(${idx})'>${collapsed ? '▶' : '▼'}</button>` : '';
+                const progressTag = (breakData && breakData.items.length && task.breakActive) ? `<div class='in-progress-tag'>🟡 In Progress</div>` : '';
                 const checklistHtml = breakData && breakData.items.length ?
-                    `<div class='in-progress-tag'>🟡 In Progress</div>` +
-                    `<ul class='break-checklist'>` +
-                    breakData.items.map((it,i) => `<li><label><input type='checkbox' ${it.done ? 'checked' : ''} onchange='toggleBreakItem(${idx},${i})'> ${it.text}</label></li>`).join('') +
+                    progressTag +
+                    `<ul class='break-checklist' style='display:${collapsed ? 'none' : 'block'};'>` +
+                    breakData.items.map((it,i) => `<li class='${it.done ? 'completed' : ''}'><label><input type='checkbox' ${it.done ? 'checked' : ''} onchange='toggleBreakItem(${idx},${i})'> <span>${it.text}</span></label></li>`).join('') +
                     `</ul><button class='add-break-item' onclick='addBreakListItem(${idx})'>➕ Add</button>`
                     : '';
 
@@ -1723,7 +1769,7 @@
                     ${tagsBlock}
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
-                        <span>${task.task}</span>${infoIcon}
+                        <span>${task.task}</span>${infoIcon}${toggleBtn}
                         <button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>
                         <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
                     </div>
@@ -1857,17 +1903,39 @@
             loadTasks();
         }
 
-        function addBreakListItem(tIndex) {
-            const text = prompt('Add break task');
-            if (text) {
-                if (!tasks[tIndex].activeBreak) {
-                    tasks[tIndex].activeBreak = { id: Date.now(), items: [] };
-                }
-                tasks[tIndex].activeBreak.items.push({ text, done: false });
-                localStorage.setItem('tasks', JSON.stringify(tasks));
-                loadTasks();
-            }
+        function toggleChecklist(index) {
+            tasks[index].checklistCollapsed = !tasks[index].checklistCollapsed;
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
         }
+
+        function addBreakListItem(tIndex) {
+            pendingBreakTaskIndex = tIndex;
+            document.getElementById('breakTaskInput').value = '';
+            document.getElementById('addBreakTaskModal').classList.add('active');
+            document.getElementById('breakTaskInput').focus();
+        }
+
+        function closeBreakTaskModal() {
+            document.getElementById('addBreakTaskModal').classList.remove('active');
+            pendingBreakTaskIndex = null;
+        }
+
+        function saveBreakTask() {
+            const text = document.getElementById('breakTaskInput').value.trim();
+            if (!text || pendingBreakTaskIndex === null) { return; }
+            if (!tasks[pendingBreakTaskIndex].activeBreak) {
+                tasks[pendingBreakTaskIndex].activeBreak = { id: Date.now(), items: [] };
+            }
+            tasks[pendingBreakTaskIndex].activeBreak.items.push({ text, done: false });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+            closeBreakTaskModal();
+        }
+
+        document.getElementById('breakTaskInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') saveBreakTask();
+        });
 
         // Add task on Enter key
         taskInput.addEventListener('keypress', function(e) {
@@ -1908,33 +1976,48 @@
 
         function updateMoodHistory() {
             const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            const breakLog = JSON.parse(localStorage.getItem('breakLog')) || [];
 
             moodTimeline.innerHTML = '';
 
-            if (moodLog.length === 0) {
+            if (moodLog.length === 0 && breakLog.length === 0) {
                 moodHistory.textContent = 'No mood logged yet';
                 toggleMoodLogBtn.style.display = 'none';
                 return;
             }
 
-            const last = moodLog[moodLog.length - 1];
-            const lastTime = formatTime(last.date);
-            const lastElapsed = (last.minutesIntoTask !== null && last.minutesIntoTask !== undefined) ? last.minutesIntoTask : last.elapsed;
-            const taskInfoLast = last.task ? `During "${last.task}" (${lastElapsed} min in)` : 'No task active';
-            moodHistory.textContent = `Latest mood: ${last.mood} – ${lastTime} – ${taskInfoLast}`;
+            const latestMood = moodLog[moodLog.length - 1];
+            if (latestMood) {
+                const lastTime = formatTime(latestMood.date);
+                const lastElapsed = (latestMood.minutesIntoTask !== null && latestMood.minutesIntoTask !== undefined) ? latestMood.minutesIntoTask : latestMood.elapsed;
+                const taskInfoLast = latestMood.task ? `During "${latestMood.task}" (${lastElapsed} min in)` : 'No task active';
+                moodHistory.textContent = `Latest mood: ${latestMood.mood} – ${lastTime} – ${taskInfoLast}`;
+            } else {
+                moodHistory.textContent = '';
+            }
 
-            const entries = showAllMoodLog ? moodLog.slice() : moodLog.slice(-7);
+            const entries = moodLog.map(e => ({...e, type:'mood'})).concat(
+                breakLog.map(b => ({...b, type:'break'}))
+            );
 
-            entries.reverse().forEach(entry => {
+            const displayEntries = showAllMoodLog ? entries.slice() : entries.slice(-7);
+
+            displayEntries.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            displayEntries.forEach(entry => {
                 const div = document.createElement('div');
                 div.classList.add('mood-timeline-entry');
-                const eElapsed = (entry.minutesIntoTask !== null && entry.minutesIntoTask !== undefined) ? entry.minutesIntoTask : entry.elapsed;
-                const taskInfo = entry.task ? `During "${entry.task}" (${eElapsed} min in)` : 'No task active';
-                div.textContent = `${entry.mood} – ${formatTime(entry.date)} – ${taskInfo}`;
+                if (entry.type === 'mood') {
+                    const eElapsed = (entry.minutesIntoTask !== null && entry.minutesIntoTask !== undefined) ? entry.minutesIntoTask : entry.elapsed;
+                    const taskInfo = entry.task ? `During "${entry.task}" (${eElapsed} min in)` : 'No task active';
+                    div.textContent = `${entry.mood} – ${formatTime(entry.date)} – ${taskInfo}`;
+                } else {
+                    div.textContent = `Break – ${entry.duration} mins ended at ${formatTime(entry.date)}`;
+                }
                 moodTimeline.appendChild(div);
             });
 
-            toggleMoodLogBtn.style.display = moodLog.length > 7 ? 'inline' : 'none';
+            toggleMoodLogBtn.style.display = entries.length > 7 ? 'inline' : 'none';
             toggleMoodLogBtn.textContent = showAllMoodLog ? 'Hide' : 'View all';
         }
 
@@ -2100,6 +2183,7 @@
             input.value = initial || '';
             modal.classList.add('active');
             input.focus();
+            document.getElementById('breakError').style.display = 'none';
             const suggestion = document.getElementById('breakSuggestion');
             if (mood === '😩' || mood === '😠') {
                 suggestion.style.display = 'block';
@@ -2142,26 +2226,38 @@
             const duration = parseInt(document.getElementById('breakDuration').value) || 15;
 
             const stepInputs = Array.from(document.querySelectorAll('#breakSteps .break-input'));
-            const steps = stepInputs.map(el => el.value.trim()).filter(v => v);
+            const steps = stepInputs.map(el => el.value.trim());
 
-            if (steps.length) {
+            if (stepInputs.some(el => !el.value.trim())) {
+                const err = document.getElementById('breakError');
+                err.textContent = 'Please fill or remove empty tasks.';
+                err.style.display = 'block';
+                return;
+            }
+
+            const cleanSteps = steps.filter(v => v);
+
+            if (cleanSteps.length) {
                 if (currentTaskIndex !== null) {
                     tasks[currentTaskIndex].activeBreak = {
                         id: Date.now(),
-                        items: steps.map(t => ({ text: t, done: false }))
+                        items: cleanSteps.map(t => ({ text: t, done: false }))
                     };
+                    tasks[currentTaskIndex].breakActive = true;
                     localStorage.setItem('tasks', JSON.stringify(tasks));
                     loadTasks();
                 } else {
                     if (confirm('Add as standalone tasks to Today\'s Tasks?')) {
-                        steps.forEach(t => tasks.push({ task: t }));
+                        cleanSteps.forEach(t => tasks.push({ task: t }));
                         localStorage.setItem('tasks', JSON.stringify(tasks));
                         loadTasks();
                     }
                 }
             }
 
+            document.getElementById('breakError').style.display = 'none';
             closeMoodReasonModal();
+            if (taskTimerInterval) pauseTaskTimer();
             startBreakTimer(duration);
             if (autoPausedByMood) {
                 alert('⏸️ Paused your task while you take a break 🧘‍♀️');
@@ -2753,7 +2849,7 @@
             if (currentTaskIndex !== null && tasks[currentTaskIndex].activeBreak) {
                 entry.taskId = currentTaskIndex;
                 entry.checklist = tasks[currentTaskIndex].activeBreak.items;
-                delete tasks[currentTaskIndex].activeBreak;
+                tasks[currentTaskIndex].breakActive = false;
                 localStorage.setItem('tasks', JSON.stringify(tasks));
                 loadTasks();
             }
