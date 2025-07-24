@@ -198,7 +198,8 @@
 
         .task {
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            align-items: flex-start;
             padding: 0.75rem;
             border-bottom: 1px solid #f5f5f5;
             transition: background 0.2s;
@@ -206,16 +207,13 @@
         }
 
         .task.active-task {
-            flex-direction: column;
-            align-items: flex-start;
             background: #DDEDE2;
             border-left: 4px solid #B5CDBA;
             box-shadow: 0 0 6px rgba(180, 200, 170, 0.4);
         }
 
         .task.tagged-task {
-            flex-direction: column;
-            align-items: flex-start;
+            /* layout handled by base .task */
         }
 
         .task:hover {
@@ -261,8 +259,20 @@
             transition: opacity 0.2s;
         }
 
+        .add-subtask {
+            background: none;
+            border: none;
+            color: #7c9885;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
         .task:hover .delete-task,
-        .task:hover .timer-task {
+        .task:hover .timer-task,
+        .task:hover .add-subtask {
             opacity: 1;
         }
 
@@ -973,6 +983,16 @@
             display: flex;
             align-items: center;
             gap: 0.25rem;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .task-content {
+            width: 100%;
+        }
+
+        .task-subtasks {
+            margin-left: 1.5rem;
         }
 
         .task-info-icon {
@@ -1339,8 +1359,10 @@
             <h3>Add Subtask</h3>
             <p class="floating-msg">Break this task into smaller steps</p>
             <input type="text" id="subtaskInput" placeholder="e.g., outline paragraph" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
+            <ul id="addedSubtaskList" class="subtask-checklist" style="margin-top:1rem;"></ul>
             <div class="modal-actions" style="margin-top:1.5rem;">
-                <button class="modal-btn primary" onclick="saveSubtask()">Add</button>
+                <button class="modal-btn primary" onclick="addSubtask(false)">Add Another</button>
+                <button class="modal-btn primary" onclick="addSubtask(true)">Done</button>
                 <button class="modal-btn secondary" onclick="closeSubtaskModal()">Cancel</button>
             </div>
         </div>
@@ -1911,20 +1933,23 @@
                 const subToggle = subData && subData.length ?
                     `<button class='checklist-toggle' onclick='toggleSubtaskList(${idx})'>${subCollapsed ? '▶' : '▼'}</button>` : '';
                 const subHtml = subData && subData.length ?
-                    `<ul class='subtask-checklist' style='display:${subCollapsed ? 'none' : 'block'};'>` +
+                    `<div class='task-subtasks'><ul class='subtask-checklist' style='display:${subCollapsed ? 'none' : 'block'};'>` +
                     subData.map((it,i) => `<li class='${it.done ? 'completed' : ''}'><label><input type='checkbox' ${it.done ? 'checked' : ''} onchange='toggleSubtaskItem(${idx},${i})'> <span>${it.text}</span></label></li>`).join('') +
-                    `</ul><button class='add-break-item' onclick='openSubtaskModal(${idx})'>➕ Add subtask</button>`
-                    : `<button class='add-break-item' onclick='openSubtaskModal(${idx})'>➕ Add subtask</button>`;
+                    `</ul></div>`
+                    : `<div class='task-subtasks'></div>`;
 
                 li.innerHTML = `
-                    ${tagsBlock}
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
                         <span>${task.task}</span>${infoIcon}${subToggle}${breakToggle}
+                        <button class='add-subtask' onclick='openSubtaskModal(${idx})'>➕</button>
                         <button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>
                         <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
                     </div>
-                    ${subHtml}${breakHtml}
+                    <div class='task-content'>
+                        ${tagsBlock}
+                        ${subHtml}${breakHtml}
+                    </div>
                 `;
 
                 taskList.appendChild(li);
@@ -1951,11 +1976,13 @@
                 const tagsBlock = timeTag ? `<div class='task-tags'>${timeTag}</div>` : '';
                 if (tagsBlock) li.classList.add('tagged-task');
                 li.innerHTML = `
-                    ${tagsBlock}
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
                         <span>${task.task}</span>${infoIcon}
                         <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                    </div>
+                    <div class='task-content'>
+                        ${tagsBlock}
                     </div>
                 `;
                 doneList.appendChild(li);
@@ -2100,32 +2127,50 @@
             if (e.key === 'Enter') saveBreakTask();
         });
 
-        function openSubtaskModal(tIndex) {
-            pendingSubtaskIndex = tIndex;
-            document.getElementById('subtaskInput').value = '';
-            document.getElementById('addSubtaskModal').classList.add('active');
-            document.getElementById('subtaskInput').focus();
-        }
+       function openSubtaskModal(tIndex) {
+           pendingSubtaskIndex = tIndex;
+           document.getElementById('subtaskInput').value = '';
+            document.getElementById('addedSubtaskList').innerHTML = '';
+            const existing = tasks[tIndex].subtasks || [];
+            existing.forEach(st => {
+                const li = document.createElement('li');
+                li.textContent = st.text || st;
+                document.getElementById('addedSubtaskList').appendChild(li);
+            });
+           document.getElementById('addSubtaskModal').classList.add('active');
+           document.getElementById('subtaskInput').focus();
+       }
 
         function closeSubtaskModal() {
             document.getElementById('addSubtaskModal').classList.remove('active');
             pendingSubtaskIndex = null;
+            document.getElementById('addedSubtaskList').innerHTML = '';
         }
 
-        function saveSubtask() {
-            const text = document.getElementById('subtaskInput').value.trim();
-            if (!text || pendingSubtaskIndex === null) { return; }
-            if (!tasks[pendingSubtaskIndex].subtasks) {
-                tasks[pendingSubtaskIndex].subtasks = [];
+        function addSubtask(closeAfter) {
+            const input = document.getElementById('subtaskInput');
+            const text = input.value.trim();
+            if (text && pendingSubtaskIndex !== null) {
+                if (!tasks[pendingSubtaskIndex].subtasks) {
+                    tasks[pendingSubtaskIndex].subtasks = [];
+                }
+                tasks[pendingSubtaskIndex].subtasks.push({ text, done: false });
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                loadTasks();
+                const li = document.createElement('li');
+                li.textContent = text;
+                document.getElementById('addedSubtaskList').appendChild(li);
+                input.value = '';
             }
-            tasks[pendingSubtaskIndex].subtasks.push({ text, done: false });
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            loadTasks();
-            closeSubtaskModal();
+            if (closeAfter) {
+                closeSubtaskModal();
+            } else {
+                input.focus();
+            }
         }
 
         document.getElementById('subtaskInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') saveSubtask();
+            if (e.key === 'Enter') addSubtask(false);
         });
 
         // Add task on Enter key
