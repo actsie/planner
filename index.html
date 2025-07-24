@@ -1133,6 +1133,17 @@
             margin-left: 2rem;
             list-style: disc;
         }
+        .subtask-row {
+            margin-top: 0.25rem;
+        }
+        .subtask-input {
+            flex: 1;
+            margin-left: 0;
+            padding: 0.25rem;
+            border: 1px solid #e8dfd6;
+            border-radius: 4px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
@@ -1153,6 +1164,7 @@
                 <div class="tabs">
                     <div class="tab active" id="tasksTabBtn">Today's Tasks</div>
                     <div class="tab" id="templateTabBtn">Task Templates</div>
+                    <div class="tab" id="doneTabBtn">Done</div>
                 </div>
                 <div id="tasksTab">
                     <div class="todo-input-container">
@@ -1170,6 +1182,9 @@
                     <ul id="templateList"></ul>
                     <button id="addToTodayBtn" class="modal-btn primary" style="display:none;margin-top:0.5rem;">Add to Today</button>
                     <div id="templateToast" class="floating-msg" style="display:none;margin-top:0.5rem;"></div>
+                </div>
+                <div id="doneTab" style="display:none;">
+                    <ul id="doneTaskList"></ul>
                 </div>
             </div>
 
@@ -1877,38 +1892,36 @@
                 taskList.appendChild(li);
             });
             
-            // Done tasks
+        loadDoneTasks();
+        }
+
+        function loadDoneTasks() {
+            const doneList = document.getElementById('doneTaskList');
+            if (!doneList) return;
+            doneList.innerHTML = '';
             const doneTasks = tasks
                 .filter(task => task.completed && isDateToday(task.completedAt))
                 .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
-            if (doneTasks.length > 0) {
-                const doneSection = document.createElement('div');
-                doneSection.classList.add('done-section');
-                doneSection.innerHTML = '<h3>Done</h3>';
-                doneTasks.slice(0,5).forEach((task) => {
-                    const actualIndex = tasks.indexOf(task);
-                    const li = document.createElement('li');
-                    li.classList.add('task', 'done-task');
-
-                    const workedMinutes = task.totalTime ? Math.round(task.totalTime / 60) : 0;
-                    const showInfo = task.totalTime || (task.sessions && task.sessions.length);
-                    const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${actualIndex})'>i</button>` : '';
-                    const timeTag = workedMinutes ? `<div class='worked-tag' title='Worked ${workedMinutes} min' aria-label='Worked ${workedMinutes} min'>⌛️ ${workedMinutes} min</div>` : '';
-                    const tagsBlock = timeTag ? `<div class='task-tags'>${timeTag}</div>` : '';
-                    if (tagsBlock) li.classList.add('tagged-task');
-                    li.innerHTML = `
-                        ${tagsBlock}
-                        <div class='task-header'>
-                            <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                            <span>${task.task}</span>${infoIcon}
-                            <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
-                        </div>
-                    `;
-                    doneSection.appendChild(li);
-                });
-
-                taskList.appendChild(doneSection);
-            }
+            doneTasks.forEach(task => {
+                const actualIndex = tasks.indexOf(task);
+                const li = document.createElement('li');
+                li.classList.add('task', 'done-task');
+                const workedMinutes = task.totalTime ? Math.round(task.totalTime / 60) : 0;
+                const showInfo = task.totalTime || (task.sessions && task.sessions.length);
+                const infoIcon = showInfo ? `<button class='task-info-icon' onclick='showTaskInfo(event, ${actualIndex})'>i</button>` : '';
+                const timeTag = workedMinutes ? `<div class='worked-tag' title='Worked ${workedMinutes} min' aria-label='Worked ${workedMinutes} min'>⌛️ ${workedMinutes} min</div>` : '';
+                const tagsBlock = timeTag ? `<div class='task-tags'>${timeTag}</div>` : '';
+                if (tagsBlock) li.classList.add('tagged-task');
+                li.innerHTML = `
+                    ${tagsBlock}
+                    <div class='task-header'>
+                        <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
+                        <span>${task.task}</span>${infoIcon}
+                        <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                    </div>
+                `;
+                doneList.appendChild(li);
+            });
         }
 
         function renderTaskInfoCard(index) {
@@ -2663,12 +2676,15 @@
         }
 
         function addSubtaskInput(val = '') {
+            const row = document.createElement('div');
+            row.className = 'subtask-row';
             const input = document.createElement('input');
             input.type = 'text';
-            input.className = 'break-input';
+            input.className = 'subtask-input';
             input.placeholder = 'Subtask';
             input.value = val;
-            templateSubtasks.appendChild(input);
+            row.appendChild(input);
+            templateSubtasks.appendChild(row);
         }
 
         function openTemplateModal(id = null) {
@@ -2696,7 +2712,7 @@
         function saveTemplate() {
             const name = templateNameInput.value.trim();
             if (!name) return;
-            const subs = Array.from(templateSubtasks.querySelectorAll('input')).map(i => i.value.trim()).filter(v => v);
+            const subs = Array.from(templateSubtasks.querySelectorAll('.subtask-input')).map(i => i.value.trim()).filter(v => v);
             if (editingTemplateId) {
                 const t = templates.find(t => t.id === editingTemplateId);
                 if (t) { t.name = name; t.subtasks = subs; }
@@ -2832,15 +2848,28 @@
         document.getElementById('tasksTabBtn').addEventListener('click', () => {
             document.getElementById('tasksTab').style.display = 'block';
             document.getElementById('templateTab').style.display = 'none';
+            document.getElementById('doneTab').style.display = 'none';
             document.getElementById('tasksTabBtn').classList.add('active');
             document.getElementById('templateTabBtn').classList.remove('active');
+            document.getElementById('doneTabBtn').classList.remove('active');
         });
         document.getElementById('templateTabBtn').addEventListener('click', () => {
             document.getElementById('tasksTab').style.display = 'none';
             document.getElementById('templateTab').style.display = 'block';
+            document.getElementById('doneTab').style.display = 'none';
             document.getElementById('templateTabBtn').classList.add('active');
             document.getElementById('tasksTabBtn').classList.remove('active');
+            document.getElementById('doneTabBtn').classList.remove('active');
             loadTemplates();
+        });
+        document.getElementById('doneTabBtn').addEventListener('click', () => {
+            document.getElementById('tasksTab').style.display = 'none';
+            document.getElementById('templateTab').style.display = 'none';
+            document.getElementById('doneTab').style.display = 'block';
+            document.getElementById('doneTabBtn').classList.add('active');
+            document.getElementById('tasksTabBtn').classList.remove('active');
+            document.getElementById('templateTabBtn').classList.remove('active');
+            loadDoneTasks();
         });
 
         // Task Timer Functions
@@ -3253,6 +3282,7 @@
             loadQuote();
             loadTasks();
             loadTemplates();
+            loadDoneTasks();
             loadTodaysMood();
             updateTimerDisplay();
             updateFocusTimerVisibility();
