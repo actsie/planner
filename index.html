@@ -922,8 +922,8 @@
 
         .minimized-task-timer {
             display: none;
+            flex-direction: column;
             align-items: center;
-            justify-content: space-between;
             background: white;
             padding: 0.5rem 1rem;
             border-radius: 8px;
@@ -932,13 +932,15 @@
             font-size: 0.9rem;
         }
 
-        .minimized-task-timer .controls {
+        .minimized-task-timer .timer-controls {
             display: flex;
             gap: 0.5rem;
             align-items: center;
+            justify-content: center;
+            margin-top: 0.5rem;
         }
 
-        .minimized-task-timer .controls button,
+        .minimized-task-timer .timer-controls button,
         .task-timer-display .timer-controls button {
             width: 40px;
             height: 40px;
@@ -954,7 +956,7 @@
             transition: background 0.2s;
         }
 
-        .minimized-task-timer .controls button:hover,
+        .minimized-task-timer .timer-controls button:hover,
         .task-timer-display .timer-controls button:hover {
             background: #b39b8b;
         }
@@ -1313,20 +1315,20 @@
                         <span id="minTaskTitle"></span>
                         <span id="minTaskTime"></span>
                     </div>
-                    <div class="controls">
+                    <div class="task-progress"><div class="task-progress-bar" id="minTaskProgressBar"></div></div>
+                    <div class="timer-controls">
                         <button onclick="pauseTaskTimer()" id="minPauseBtn">⏸️</button>
                         <button onclick="resumeTaskTimer()" id="minResumeBtn" style="display:none;">▶️</button>
                         <button onclick="cancelTaskTimer()">✖️</button>
                         <button onclick="addMoreTimeDuringRun()">➕</button>
                         <button onclick="maximizeTaskTimer()">🔼</button>
                     </div>
-                    <div class="task-progress"><div class="task-progress-bar" id="minTaskProgressBar"></div></div>
                 </div>
                 <div class="timer-display" id="timerArea">
                     <span id="timerDisplay">25:00</span>
                     <input id="timerInput" class="timer-input" type="number" min="1" value="25" style="display:none;">
                 </div>
-                <div class="timer-controls">
+                <div class="timer-controls" id="focusTimerControls">
                     <button class="timer-btn" id="startTimer">Start</button>
                     <button class="timer-btn" id="pauseTimer" disabled>Pause</button>
                     <button class="timer-btn" id="resetTimer">Reset</button>
@@ -2012,7 +2014,9 @@
                     `</ul></div>`
                     : `<div class='task-subtasks'></div>`;
 
-                const timerBtn = !isActive ? `<button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>` : '';
+                const timerBtn = (currentTaskIndex !== idx && !isActive)
+                    ? `<button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>`
+                    : '';
                 li.innerHTML = `
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
@@ -3304,7 +3308,7 @@
 
         function updateFocusTimerVisibility() {
             const focusDisplay = document.getElementById('timerDisplay');
-            const focusControls = document.querySelector('.timer-controls');
+            const focusControls = document.getElementById('focusTimerControls');
             const focusProgress = document.querySelector('.timer-progress');
             if (taskTimerInterval || isTaskPaused) {
                 focusDisplay.style.display = 'none';
