@@ -1064,6 +1064,75 @@
         .log-task-section.breaks .mood-section-title {
             color: #2196f3;
         }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e8dfd6;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            border-color: #7c9885;
+            font-weight: bold;
+        }
+
+        .templates-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 0.5rem;
+        }
+
+        #addTemplateBtn {
+            background: #b5a99f;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #addTemplateBtn:hover {
+            background: #9f8e82;
+        }
+
+        #templateList {
+            list-style: none;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .template-item {
+            border-bottom: 1px solid #f0f0f0;
+            padding: 0.5rem 0;
+        }
+
+        .template-header {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .template-header button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+
+        .subtask-list {
+            margin-top: 0.5rem;
+            margin-left: 2rem;
+            list-style: disc;
+        }
     </style>
 </head>
 <body>
@@ -1080,14 +1149,28 @@
         </div>
 
         <div class="main-content">
-            <div class="card">
-                <h2>Today's Tasks</h2>
-                <div class="todo-input-container">
-                    <input type="text" id="taskInput" placeholder="What would you like to do today?" />
-                    <button id="addTask">Add</button>
+            <div class="card" id="tasksCard">
+                <div class="tabs">
+                    <div class="tab active" id="tasksTabBtn">Today's Tasks</div>
+                    <div class="tab" id="templateTabBtn">Task Templates</div>
                 </div>
-                <ul id="taskList"></ul>
-                <div id="taskInfoCard" class="task-info-card"></div>
+                <div id="tasksTab">
+                    <div class="todo-input-container">
+                        <input type="text" id="taskInput" placeholder="What would you like to do today?" />
+                        <button id="addTask">Add</button>
+                    </div>
+                    <ul id="taskList"></ul>
+                    <div id="taskInfoCard" class="task-info-card"></div>
+                </div>
+                <div id="templateTab" style="display:none;">
+                    <div class="templates-actions">
+                        <button id="addTemplateBtn">New Template</button>
+                    </div>
+                    <input type="text" id="templateFilter" placeholder="Filter templates" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;border:1px solid #e8dfd6;border-radius:8px;">
+                    <ul id="templateList"></ul>
+                    <button id="addToTodayBtn" class="modal-btn primary" style="display:none;margin-top:0.5rem;">Add to Today</button>
+                    <div id="templateToast" class="floating-msg" style="display:none;margin-top:0.5rem;"></div>
+                </div>
             </div>
 
             <div class="card">
@@ -1217,6 +1300,21 @@
             <div class="modal-actions" style="margin-top:1.5rem;">
                 <button class="modal-btn primary" onclick="saveBreakTask()">Add</button>
                 <button class="modal-btn secondary" onclick="closeBreakTaskModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Template Modal -->
+    <div class="modal unified-modal" id="templateModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeTemplateModal()">❌</button>
+            <h3 id="templateModalTitle">New Template</h3>
+            <input type="text" id="templateNameInput" placeholder="Template name" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
+            <div id="templateSubtasks" style="margin-top:1rem;"></div>
+            <button id="addSubtaskBtn" class="add-break-item" style="margin-left:0;">➕ Add subtask</button>
+            <div class="modal-actions" style="margin-top:1.5rem;">
+                <button class="modal-btn primary" onclick="saveTemplate()">Save</button>
+                <button class="modal-btn secondary" onclick="closeTemplateModal()">Cancel</button>
             </div>
         </div>
     </div>
@@ -2543,6 +2641,208 @@
             }
         });
 
+        // Template Management
+        let templates = JSON.parse(localStorage.getItem('taskTemplates')) || [];
+        let editingTemplateId = null;
+
+        const templateList = document.getElementById('templateList');
+        const templateFilter = document.getElementById('templateFilter');
+        const addTemplateBtn = document.getElementById('addTemplateBtn');
+        const addToTodayBtn = document.getElementById('addToTodayBtn');
+        const templateToast = document.getElementById('templateToast');
+        const templateNameInput = document.getElementById('templateNameInput');
+        const templateSubtasks = document.getElementById('templateSubtasks');
+        const addSubtaskBtn = document.getElementById('addSubtaskBtn');
+
+        function generateTemplateId() {
+            return Date.now().toString();
+        }
+
+        function saveTemplates() {
+            localStorage.setItem('taskTemplates', JSON.stringify(templates));
+        }
+
+        function addSubtaskInput(val = '') {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'break-input';
+            input.placeholder = 'Subtask';
+            input.value = val;
+            templateSubtasks.appendChild(input);
+        }
+
+        function openTemplateModal(id = null) {
+            editingTemplateId = id;
+            templateNameInput.value = '';
+            templateSubtasks.innerHTML = '';
+            if (id) {
+                const t = templates.find(t => t.id === id);
+                if (t) {
+                    templateNameInput.value = t.name;
+                    (t.subtasks || []).forEach(st => addSubtaskInput(st));
+                }
+                document.getElementById('templateModalTitle').textContent = 'Edit Template';
+            } else {
+                document.getElementById('templateModalTitle').textContent = 'New Template';
+            }
+            document.getElementById('templateModal').classList.add('active');
+        }
+
+        function closeTemplateModal() {
+            document.getElementById('templateModal').classList.remove('active');
+            editingTemplateId = null;
+        }
+
+        function saveTemplate() {
+            const name = templateNameInput.value.trim();
+            if (!name) return;
+            const subs = Array.from(templateSubtasks.querySelectorAll('input')).map(i => i.value.trim()).filter(v => v);
+            if (editingTemplateId) {
+                const t = templates.find(t => t.id === editingTemplateId);
+                if (t) { t.name = name; t.subtasks = subs; }
+            } else {
+                templates.push({ id: generateTemplateId(), name, subtasks: subs });
+            }
+            saveTemplates();
+            closeTemplateModal();
+            loadTemplates();
+        }
+
+        function renderTemplateItem(t) {
+            const li = document.createElement('li');
+            li.className = 'template-item';
+            li.dataset.id = t.id;
+            li.draggable = true;
+
+            li.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', t.id);
+            });
+            li.addEventListener('dragover', e => e.preventDefault());
+            li.addEventListener('drop', e => {
+                e.preventDefault();
+                const srcId = e.dataTransfer.getData('text/plain');
+                reorderTemplates(srcId, t.id);
+            });
+
+            const header = document.createElement('div');
+            header.className = 'template-header';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'select-template';
+            checkbox.addEventListener('change', updateAddButton);
+            header.appendChild(checkbox);
+
+            if (t.subtasks && t.subtasks.length) {
+                const dropBtn = document.createElement('button');
+                dropBtn.textContent = '▾';
+                dropBtn.className = 'dropdown';
+                dropBtn.addEventListener('click', () => {
+                    const list = li.querySelector('.subtask-list');
+                    const hidden = list.style.display === 'none';
+                    list.style.display = hidden ? 'block' : 'none';
+                    dropBtn.textContent = hidden ? '▾' : '▸';
+                });
+                header.appendChild(dropBtn);
+            }
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = t.name;
+            header.appendChild(nameSpan);
+
+            const editBtn = document.createElement('button');
+            editBtn.innerHTML = '✏️';
+            editBtn.addEventListener('click', e => { e.stopPropagation(); openTemplateModal(t.id); });
+            header.appendChild(editBtn);
+
+            li.appendChild(header);
+
+            if (t.subtasks && t.subtasks.length) {
+                const ul = document.createElement('ul');
+                ul.className = 'subtask-list';
+                ul.style.display = 'none';
+                t.subtasks.forEach(s => {
+                    const it = document.createElement('li');
+                    it.textContent = s;
+                    ul.appendChild(it);
+                });
+                li.appendChild(ul);
+            }
+
+            return li;
+        }
+
+        function loadTemplates() {
+            templateList.innerHTML = '';
+            const filter = templateFilter.value.trim().toLowerCase();
+            templates.forEach(t => {
+                if (filter && !t.name.toLowerCase().includes(filter)) return;
+                const li = renderTemplateItem(t);
+                templateList.appendChild(li);
+            });
+            updateAddButton();
+        }
+
+        function reorderTemplates(srcId, targetId) {
+            if (srcId === targetId) return;
+            const srcIndex = templates.findIndex(t => t.id === srcId);
+            const targetIndex = templates.findIndex(t => t.id === targetId);
+            if (srcIndex < 0 || targetIndex < 0) return;
+            const [moved] = templates.splice(srcIndex, 1);
+            templates.splice(targetIndex, 0, moved);
+            saveTemplates();
+            loadTemplates();
+        }
+
+        function updateAddButton() {
+            const any = templateList.querySelectorAll('.select-template:checked').length > 0;
+            addToTodayBtn.style.display = any ? 'block' : 'none';
+        }
+
+        function addTemplatesToToday() {
+            const selected = Array.from(templateList.querySelectorAll('.select-template:checked'));
+            if (!selected.length) return;
+            selected.forEach(cb => {
+                const id = cb.closest('.template-item').dataset.id;
+                const t = templates.find(tmp => tmp.id === id);
+                if (!t) return;
+                const newTask = { task: t.name, completed: false, totalTime: 0, sessions: [] };
+                if (t.subtasks && t.subtasks.length) {
+                    newTask.activeBreak = { id: Date.now(), items: t.subtasks.map(s => ({ text: s, done: false })) };
+                }
+                tasks.push(newTask);
+                cb.checked = false;
+            });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+            updateAddButton();
+            showTemplateToast(`${selected.length} template${selected.length>1?'s':''} added to Today's Tasks`);
+        }
+
+        function showTemplateToast(msg) {
+            templateToast.textContent = msg;
+            templateToast.style.display = 'block';
+            setTimeout(() => templateToast.style.display = 'none', 2000);
+        }
+
+        addSubtaskBtn.addEventListener('click', () => addSubtaskInput());
+        addTemplateBtn.addEventListener('click', () => openTemplateModal());
+        templateFilter.addEventListener('input', loadTemplates);
+        addToTodayBtn.addEventListener('click', addTemplatesToToday);
+        document.getElementById('tasksTabBtn').addEventListener('click', () => {
+            document.getElementById('tasksTab').style.display = 'block';
+            document.getElementById('templateTab').style.display = 'none';
+            document.getElementById('tasksTabBtn').classList.add('active');
+            document.getElementById('templateTabBtn').classList.remove('active');
+        });
+        document.getElementById('templateTabBtn').addEventListener('click', () => {
+            document.getElementById('tasksTab').style.display = 'none';
+            document.getElementById('templateTab').style.display = 'block';
+            document.getElementById('templateTabBtn').classList.add('active');
+            document.getElementById('tasksTabBtn').classList.remove('active');
+            loadTemplates();
+        });
+
         // Task Timer Functions
         function startTaskTimer(index) {
             currentTaskIndex = index;
@@ -2952,6 +3252,7 @@
             checkForNewDay();
             loadQuote();
             loadTasks();
+            loadTemplates();
             loadTodaysMood();
             updateTimerDisplay();
             updateFocusTimerVisibility();
