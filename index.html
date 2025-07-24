@@ -932,18 +932,19 @@
             font-size: 0.9rem;
         }
 
-        .minimized-task-timer .timer-controls {
+        .minimized-task-timer .timer-controls,
+        .task-timer-display .timer-controls {
             display: flex;
             gap: 0.5rem;
             align-items: center;
             justify-content: center;
-            margin-top: 0.5rem;
+            margin-top: 0.75rem;
         }
 
         .minimized-task-timer .timer-controls button,
         .task-timer-display .timer-controls button {
-            width: 40px;
-            height: 40px;
+            width: 25px;
+            height: 25px;
             background: #c9b3a3;
             border: none;
             color: white;
@@ -1001,10 +1002,18 @@
 
         .task-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
             gap: 0.25rem;
             width: 100%;
             flex-wrap: wrap;
+        }
+
+        .task-main,
+        .task-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
         }
 
         .task-content {
@@ -1413,7 +1422,7 @@
     <div class="modal unified-modal" id="addSubtaskModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeSubtaskModal()">❌</button>
-            <h3>Add Subtask</h3>
+            <h3 id="subtaskModalTitle">Add Subtask</h3>
             <p class="floating-msg">Break this task into smaller steps</p>
             <input type="text" id="subtaskInput" placeholder="e.g., outline paragraph" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
             <ul id="addedSubtaskList" class="subtask-checklist" style="margin-top:1rem;"></ul>
@@ -1995,7 +2004,7 @@
                 const breakData = task.activeBreak;
                 const breakCollapsed = task.checklistCollapsed;
                 const breakToggle = breakData && breakData.items && breakData.items.length ?
-                    `<button class='checklist-toggle' onclick='toggleChecklist(${idx})'>${breakCollapsed ? '▶' : '▼'}</button>` : '';
+                    `<button class='checklist-toggle' onclick='toggleChecklist(${idx})'>${breakCollapsed ? '▸' : '⤓'}</button>` : '';
                 const progressTag = (breakData && breakData.items && breakData.items.length && task.breakActive) ? `<div class='in-progress-tag'>🟡 In Progress</div>` : '';
                 const breakHtml = breakData && breakData.items && breakData.items.length ?
                     progressTag +
@@ -2007,7 +2016,7 @@
                 const subData = task.subtasks;
                 const subCollapsed = task.subtasksCollapsed;
                 const subToggle = subData && subData.length ?
-                    `<button class='checklist-toggle' onclick='toggleSubtaskList(${idx})'>${subCollapsed ? '▶' : '▼'}</button>` : '';
+                    `<button class='checklist-toggle' onclick='toggleSubtaskList(${idx})'>${subCollapsed ? '▸' : '⤓'}</button>` : '';
                 const subHtml = subData && subData.length ?
                     `<div class='task-subtasks'><ul class='subtask-checklist' style='display:${subCollapsed ? 'none' : 'block'};'>` +
                     subData.map((it,i) => `<li class='${it.done ? 'completed' : ''}'><label><input type='checkbox' ${it.done ? 'checked' : ''} onchange='toggleSubtaskItem(${idx},${i})'> <span>${it.text}</span></label></li>`).join('') +
@@ -2019,11 +2028,16 @@
                     : '';
                 li.innerHTML = `
                     <div class='task-header'>
-                        <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
-                        <span>${task.task}</span>${infoIcon}${subToggle}${breakToggle}
-                        <button class='add-subtask' onclick='openSubtaskModal(${idx})'>➕</button>
-                        ${timerBtn}
-                        <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
+                        <div class='task-main'>
+                            <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
+                            <span>${task.task}</span>${infoIcon}
+                        </div>
+                        <div class='task-actions'>
+                            ${subToggle}${breakToggle}
+                            <button class='add-subtask' onclick='openSubtaskModal(${idx})'>➕</button>
+                            ${timerBtn}
+                            <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
+                        </div>
                     </div>
                     <div class='task-content'>
                         ${tagsBlock}
@@ -2056,9 +2070,13 @@
                 if (tagsBlock) li.classList.add('tagged-task');
                 li.innerHTML = `
                     <div class='task-header'>
-                        <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                        <span>${task.task}</span>${infoIcon}
-                        <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                        <div class='task-main'>
+                            <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
+                            <span>${task.task}</span>${infoIcon}
+                        </div>
+                        <div class='task-actions'>
+                            <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                        </div>
                     </div>
                     <div class='task-content'>
                         ${tagsBlock}
@@ -2208,13 +2226,16 @@
 
        function openSubtaskModal(tIndex) {
            pendingSubtaskIndex = tIndex;
+           const title = document.getElementById('subtaskModalTitle');
+           if (title) title.textContent = `Add subtasks for: ${tasks[tIndex].task}`;
            document.getElementById('subtaskInput').value = '';
-            document.getElementById('addedSubtaskList').innerHTML = '';
+            const list = document.getElementById('addedSubtaskList');
+            list.innerHTML = '';
             const existing = tasks[tIndex].subtasks || [];
-            existing.forEach(st => {
+            existing.forEach((st,i) => {
                 const li = document.createElement('li');
-                li.textContent = st.text || st;
-                document.getElementById('addedSubtaskList').appendChild(li);
+                li.innerHTML = `<span>${st.text || st}</span> <button class='delete-subtask' onclick='deleteExistingSubtask(${tIndex},${i})'>×</button>`;
+                list.appendChild(li);
             });
            document.getElementById('addSubtaskModal').classList.add('active');
            document.getElementById('subtaskInput').focus();
@@ -2237,7 +2258,7 @@
                 localStorage.setItem('tasks', JSON.stringify(tasks));
                 loadTasks();
                 const li = document.createElement('li');
-                li.textContent = text;
+                li.innerHTML = `<span>${text}</span> <button class='delete-subtask' onclick='deleteExistingSubtask(${pendingSubtaskIndex},${tasks[pendingSubtaskIndex].subtasks.length-1})'>×</button>`;
                 document.getElementById('addedSubtaskList').appendChild(li);
                 input.value = '';
             }
@@ -2251,6 +2272,15 @@
         document.getElementById('subtaskInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') addSubtask(false);
         });
+
+        function deleteExistingSubtask(taskIndex, subIndex) {
+            const subs = tasks[taskIndex].subtasks;
+            if (!subs) return;
+            subs.splice(subIndex, 1);
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            openSubtaskModal(taskIndex);
+            loadTasks();
+        }
 
         // Add task on Enter key
         taskInput.addEventListener('keypress', function(e) {
