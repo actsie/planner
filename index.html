@@ -1266,6 +1266,26 @@
             color: #8B4513;
         }
 
+        .task-toggle {
+            background: none;
+            border: none;
+            color: #8B4513;
+            cursor: pointer;
+            margin-right: 0.25rem;
+            font-size: 0.85rem;
+        }
+
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+        }
+
         .subtask-list {
             margin-top: 0.5rem;
             margin-left: 2rem;
@@ -1321,7 +1341,7 @@
                     <div class="tab" id="templateTabBtn">Task Templates</div>
                     <div class="tab" id="doneTabBtn">Done</div>
                 </div>
-                <div id="tasksTab">
+                <div id="tasksTab" class="tab-content active">
                     <div class="todo-input-container">
                         <input type="text" id="taskInput" placeholder="What would you like to do today?" />
                         <button id="addTask">Add</button>
@@ -1329,7 +1349,7 @@
                     <ul id="taskList"></ul>
                     <div id="taskInfoCard" class="task-info-card"></div>
                 </div>
-                <div id="templateTab" style="display:none;">
+                <div id="templateTab" class="tab-content">
                     <div class="templates-actions">
                         <button id="addTemplateBtn">New Template</button>
                     </div>
@@ -1338,7 +1358,7 @@
                     <button id="addToTodayBtn" class="modal-btn primary" style="display:none;margin-top:0.5rem;">Add to Today</button>
                     <div id="templateToast" class="floating-msg" style="display:none;margin-top:0.5rem;"></div>
                 </div>
-                <div id="doneTab" style="display:none;">
+                <div id="doneTab" class="tab-content">
                     <ul id="doneTaskList"></ul>
                 </div>
             </div>
@@ -2057,8 +2077,7 @@
 
                 const breakData = task.activeBreak;
                 const breakCollapsed = task.checklistCollapsed;
-                const breakToggle = breakData && breakData.items && breakData.items.length ?
-                    `<button class='checklist-toggle' onclick='toggleChecklist(${idx})'>${breakCollapsed ? '▸' : '⤓'}</button>` : '';
+                const breakToggle = breakData && breakData.items && breakData.items.length ? true : false;
                 const progressTag = (breakData && breakData.items && breakData.items.length && task.breakActive) ? `<div class='in-progress-tag'>🟡 In Progress</div>` : '';
                 const breakHtml = breakData && breakData.items && breakData.items.length ?
                     progressTag +
@@ -2069,8 +2088,7 @@
 
                 const subData = task.subtasks;
                 const subCollapsed = task.subtasksCollapsed;
-                const subToggle = subData && subData.length ?
-                    `<button class='checklist-toggle' onclick='toggleSubtaskList(${idx})'>${subCollapsed ? '▸' : '⤓'}</button>` : '';
+                const subToggle = subData && subData.length ? true : false;
                 const subHtml = subData && subData.length ?
                     `<div class='task-subtasks'><ul class='subtask-checklist' style='display:${subCollapsed ? 'none' : 'block'};'>` +
                     subData.map((it,i) => `<li class='${it.done ? 'completed' : ''}'><label><input type='checkbox' ${it.done ? 'checked' : ''} onchange='toggleSubtaskItem(${idx},${i})'> <span>${it.text}</span></label></li>`).join('') +
@@ -2080,14 +2098,17 @@
                 const timerBtn = (currentTaskIndex !== idx && !isActive)
                     ? `<button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>`
                     : '';
+
+                const hasToggle = breakToggle || subToggle;
+                const combinedCollapsed = (subToggle ? subCollapsed : true) && (breakToggle ? breakCollapsed : true);
+                const toggleBtn = hasToggle ? `<button class='task-toggle' onclick='toggleTaskContent(${idx})'>${combinedCollapsed ? '▸' : '▾'}</button>` : '';
                 li.innerHTML = `
                     <div class='task-header'>
                         <div class='task-main'>
                             <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
-                            <span>${task.task}</span>${infoIcon}
+                            ${toggleBtn}<span>${task.task}</span>${infoIcon}
                         </div>
                         <div class='task-actions'>
-                            ${subToggle}${breakToggle}
                             <button class='add-subtask' onclick='openSubtaskModal(${idx})'>➕</button>
                             ${timerBtn}
                             <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
@@ -2246,6 +2267,16 @@
 
         function toggleSubtaskList(index) {
             tasks[index].subtasksCollapsed = !tasks[index].subtasksCollapsed;
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+        }
+
+        function toggleTaskContent(index) {
+            const task = tasks[index];
+            const hasSubs = task.subtasks && task.subtasks.length;
+            const hasBreak = task.activeBreak && task.activeBreak.items && task.activeBreak.items.length;
+            if (hasSubs) task.subtasksCollapsed = !task.subtasksCollapsed;
+            if (hasBreak) task.checklistCollapsed = !task.checklistCollapsed;
             localStorage.setItem('tasks', JSON.stringify(tasks));
             loadTasks();
         }
@@ -3056,7 +3087,7 @@
 
             if (t.subtasks && t.subtasks.length) {
                 const dropBtn = document.createElement('button');
-                dropBtn.textContent = '▾';
+                dropBtn.textContent = '▸';
                 dropBtn.className = 'dropdown template-expand-icon';
                 dropBtn.addEventListener('click', () => {
                     const list = li.querySelector('.subtask-list');
@@ -3181,32 +3212,34 @@
         addTemplateBtn.addEventListener('click', () => openTemplateModal());
         templateFilter.addEventListener('input', loadTemplates);
         addToTodayBtn.addEventListener('click', addTemplatesToToday);
-        document.getElementById('tasksTabBtn').addEventListener('click', () => {
-            document.getElementById('tasksTab').style.display = 'block';
-            document.getElementById('templateTab').style.display = 'none';
-            document.getElementById('doneTab').style.display = 'none';
-            document.getElementById('tasksTabBtn').classList.add('active');
-            document.getElementById('templateTabBtn').classList.remove('active');
-            document.getElementById('doneTabBtn').classList.remove('active');
-        });
-        document.getElementById('templateTabBtn').addEventListener('click', () => {
-            document.getElementById('tasksTab').style.display = 'none';
-            document.getElementById('templateTab').style.display = 'block';
-            document.getElementById('doneTab').style.display = 'none';
-            document.getElementById('templateTabBtn').classList.add('active');
-            document.getElementById('tasksTabBtn').classList.remove('active');
-            document.getElementById('doneTabBtn').classList.remove('active');
-            loadTemplates();
-        });
-        document.getElementById('doneTabBtn').addEventListener('click', () => {
-            document.getElementById('tasksTab').style.display = 'none';
-            document.getElementById('templateTab').style.display = 'none';
-            document.getElementById('doneTab').style.display = 'block';
-            document.getElementById('doneTabBtn').classList.add('active');
-            document.getElementById('tasksTabBtn').classList.remove('active');
-            document.getElementById('templateTabBtn').classList.remove('active');
-            loadDoneTasks();
-        });
+
+        let currentTab = 'tasksTab';
+
+        function animateTabSwitch(fromId, toId) {
+            const from = document.getElementById(fromId);
+            const to = document.getElementById(toId);
+            if (from === to) return;
+            from.classList.remove('active');
+            setTimeout(() => {
+                from.style.display = 'none';
+                to.style.display = 'block';
+                requestAnimationFrame(() => to.classList.add('active'));
+            }, 300);
+        }
+
+        function switchTab(tabId) {
+            if (currentTab === tabId) return;
+            animateTabSwitch(currentTab, tabId);
+            currentTab = tabId;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId + 'Btn').classList.add('active');
+            if (tabId === 'templateTab') loadTemplates();
+            if (tabId === 'doneTab') loadDoneTasks();
+        }
+
+        document.getElementById('tasksTabBtn').addEventListener('click', () => switchTab('tasksTab'));
+        document.getElementById('templateTabBtn').addEventListener('click', () => switchTab('templateTab'));
+        document.getElementById('doneTabBtn').addEventListener('click', () => switchTab('doneTab'));
 
         // Task Timer Functions
         function startTaskTimer(index) {
