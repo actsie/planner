@@ -848,6 +848,12 @@
             margin-top: 1.5rem;
         }
 
+        @media (max-width: 400px) {
+            .modal-actions {
+                flex-direction: column;
+            }
+        }
+
         .modal-btn {
             flex: 1;
             padding: 0.75rem 1rem;
@@ -857,9 +863,6 @@
             font-size: 0.85rem;
             transition: background 0.2s;
             position: relative;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             line-height: 1.2;
         }
 
