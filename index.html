@@ -302,6 +302,19 @@
             opacity: 0.7;
         }
 
+        .subtask-checklist {
+            margin-left: 1.5rem;
+            font-size: 0.85rem;
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .subtask-checklist li.completed span {
+            color: #a0aec0;
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+
         .checklist-toggle {
             background: none;
             border: none;
@@ -1319,6 +1332,20 @@
         </div>
     </div>
 
+    <!-- Add Subtask Modal -->
+    <div class="modal unified-modal" id="addSubtaskModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeSubtaskModal()">❌</button>
+            <h3>Add Subtask</h3>
+            <p class="floating-msg">Break this task into smaller steps</p>
+            <input type="text" id="subtaskInput" placeholder="e.g., outline paragraph" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
+            <div class="modal-actions" style="margin-top:1.5rem;">
+                <button class="modal-btn primary" onclick="saveSubtask()">Add</button>
+                <button class="modal-btn secondary" onclick="closeSubtaskModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- New Template Modal -->
     <div class="modal unified-modal" id="templateModal">
         <div class="modal-content">
@@ -1476,6 +1503,7 @@
         // To-Do List functionality
         let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
         let pendingBreakTaskIndex = null;
+        let pendingSubtaskIndex = null;
         const taskList = document.getElementById('taskList');
         const taskInput = document.getElementById('taskInput');
         const addTaskButton = document.getElementById('addTask');
@@ -1867,26 +1895,36 @@
                 if (tagsBlock) li.classList.add('tagged-task');
 
                 const breakData = task.activeBreak;
-                const collapsed = task.checklistCollapsed;
-                const toggleBtn = breakData && breakData.items.length ?
-                    `<button class='checklist-toggle' onclick='toggleChecklist(${idx})'>${collapsed ? '▶' : '▼'}</button>` : '';
-                const progressTag = (breakData && breakData.items.length && task.breakActive) ? `<div class='in-progress-tag'>🟡 In Progress</div>` : '';
-                const checklistHtml = breakData && breakData.items.length ?
+                const breakCollapsed = task.checklistCollapsed;
+                const breakToggle = breakData && breakData.items && breakData.items.length ?
+                    `<button class='checklist-toggle' onclick='toggleChecklist(${idx})'>${breakCollapsed ? '▶' : '▼'}</button>` : '';
+                const progressTag = (breakData && breakData.items && breakData.items.length && task.breakActive) ? `<div class='in-progress-tag'>🟡 In Progress</div>` : '';
+                const breakHtml = breakData && breakData.items && breakData.items.length ?
                     progressTag +
-                    `<ul class='break-checklist' style='display:${collapsed ? 'none' : 'block'};'>` +
+                    `<ul class='break-checklist' style='display:${breakCollapsed ? 'none' : 'block'};'>` +
                     breakData.items.map((it,i) => `<li class='${it.done ? 'completed' : ''}'><label><input type='checkbox' ${it.done ? 'checked' : ''} onchange='toggleBreakItem(${idx},${i})'> <span>${it.text}</span></label></li>`).join('') +
                     `</ul><button class='add-break-item' onclick='addBreakListItem(${idx})'>➕ Add</button>`
                     : '';
+
+                const subData = task.subtasks;
+                const subCollapsed = task.subtasksCollapsed;
+                const subToggle = subData && subData.length ?
+                    `<button class='checklist-toggle' onclick='toggleSubtaskList(${idx})'>${subCollapsed ? '▶' : '▼'}</button>` : '';
+                const subHtml = subData && subData.length ?
+                    `<ul class='subtask-checklist' style='display:${subCollapsed ? 'none' : 'block'};'>` +
+                    subData.map((it,i) => `<li class='${it.done ? 'completed' : ''}'><label><input type='checkbox' ${it.done ? 'checked' : ''} onchange='toggleSubtaskItem(${idx},${i})'> <span>${it.text}</span></label></li>`).join('') +
+                    `</ul><button class='add-break-item' onclick='openSubtaskModal(${idx})'>➕ Add subtask</button>`
+                    : `<button class='add-break-item' onclick='openSubtaskModal(${idx})'>➕ Add subtask</button>`;
 
                 li.innerHTML = `
                     ${tagsBlock}
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
-                        <span>${task.task}</span>${infoIcon}${toggleBtn}
+                        <span>${task.task}</span>${infoIcon}${subToggle}${breakToggle}
                         <button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>
                         <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
                     </div>
-                    ${checklistHtml}
+                    ${subHtml}${breakHtml}
                 `;
 
                 taskList.appendChild(li);
@@ -2014,8 +2052,22 @@
             loadTasks();
         }
 
+        function toggleSubtaskItem(tIndex, iIndex) {
+            const items = tasks[tIndex].subtasks;
+            if (!items) return;
+            items[iIndex].done = !items[iIndex].done;
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+        }
+
         function toggleChecklist(index) {
             tasks[index].checklistCollapsed = !tasks[index].checklistCollapsed;
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+        }
+
+        function toggleSubtaskList(index) {
+            tasks[index].subtasksCollapsed = !tasks[index].subtasksCollapsed;
             localStorage.setItem('tasks', JSON.stringify(tasks));
             loadTasks();
         }
@@ -2046,6 +2098,34 @@
 
         document.getElementById('breakTaskInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') saveBreakTask();
+        });
+
+        function openSubtaskModal(tIndex) {
+            pendingSubtaskIndex = tIndex;
+            document.getElementById('subtaskInput').value = '';
+            document.getElementById('addSubtaskModal').classList.add('active');
+            document.getElementById('subtaskInput').focus();
+        }
+
+        function closeSubtaskModal() {
+            document.getElementById('addSubtaskModal').classList.remove('active');
+            pendingSubtaskIndex = null;
+        }
+
+        function saveSubtask() {
+            const text = document.getElementById('subtaskInput').value.trim();
+            if (!text || pendingSubtaskIndex === null) { return; }
+            if (!tasks[pendingSubtaskIndex].subtasks) {
+                tasks[pendingSubtaskIndex].subtasks = [];
+            }
+            tasks[pendingSubtaskIndex].subtasks.push({ text, done: false });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+            closeSubtaskModal();
+        }
+
+        document.getElementById('subtaskInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') saveSubtask();
         });
 
         // Add task on Enter key
@@ -2824,7 +2904,7 @@
                 if (!t) return;
                 const newTask = { task: t.name, completed: false, totalTime: 0, sessions: [] };
                 if (t.subtasks && t.subtasks.length) {
-                    newTask.activeBreak = { id: Date.now(), items: t.subtasks.map(s => ({ text: s, done: false })) };
+                    newTask.subtasks = t.subtasks.map(s => ({ text: s, done: false }));
                 }
                 tasks.push(newTask);
                 cb.checked = false;
