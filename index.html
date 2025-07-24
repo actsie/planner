@@ -350,6 +350,36 @@
             border: none;
         }
 
+        .modal-input {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border: 2px solid #e8dfd6;
+            border-radius: 8px;
+        }
+
+        #breakSuggestion {
+            background: #f8f6f2;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #e8dfd6;
+            margin-top: 1.5rem;
+        }
+
+        .break-steps-container {
+            margin: 1rem 0;
+        }
+
+        .break-duration-section {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
         .task-tags {
             display: flex;
             gap: 6px;
@@ -966,13 +996,17 @@
         .break-item {
             display: flex;
             align-items: center;
-            margin-top: 0.25rem;
+            margin: 0.75rem 0;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e8dfd6;
         }
 
         .break-input {
             margin-left: 0.5rem;
             flex: 1;
-            padding: 0.25rem;
+            padding: 0.5rem;
             border: 1px solid #e8dfd6;
             border-radius: 4px;
             color: #555;
@@ -1490,16 +1524,16 @@
         <div class="modal-content">
             <button class="modal-close" onclick="closeMoodReasonModal()">❌</button>
             <h3>Want to share why you felt this way?</h3>
-            <input type="text" id="moodReasonInput" placeholder="Optional reason" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
-            <div id="breakSuggestion" style="display:none;margin-top:1.5rem;">
+            <input type="text" id="moodReasonInput" class="modal-input" placeholder="Optional reason">
+            <div id="breakSuggestion" style="display:none;">
                 <p style="margin-bottom:0.5rem;">💬 Sounds like it might be time for a break. Want to try breaking your task down first?</p>
-                <div id="breakSteps">
+                <div id="breakSteps" class="break-steps-container">
                     <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="e.g., write intro paragraph"></div>
                     <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="e.g., add tweet image"></div>
                     <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="break task 3…"></div>
                 </div>
                 <button id="addBreakStep" class="add-break-item">➕ Add</button>
-                <div class="break-duration-row" style="margin-top:0.5rem; display:flex; align-items:center; gap:0.5rem;">
+                <div class="break-duration-section">
                     <span>Take a break for:</span>
                     <input type="number" id="breakDuration" value="15" min="1" style="width:60px;">
                     <span>min</span>
