@@ -1161,6 +1161,26 @@
             color: #a0aec0;
         }
 
+        .template-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .template-item:hover .template-controls {
+            opacity: 1;
+        }
+
+        .delete-template {
+            color: #e2b1b1;
+        }
+
+        .template-expand-icon {
+            color: #8B4513;
+        }
+
         .subtask-list {
             margin-top: 0.5rem;
             margin-left: 2rem;
@@ -1168,6 +1188,9 @@
         }
         .subtask-row {
             margin-top: 0.25rem;
+            margin-left: 1.5rem;
+            display: flex;
+            align-items: center;
         }
         .subtask-input {
             flex: 1;
@@ -1176,6 +1199,20 @@
             border: 1px solid #e8dfd6;
             border-radius: 4px;
             color: #555;
+        }
+
+        .template-subtask-input {
+            width: 100%;
+            padding: 0.5rem;
+        }
+
+        .delete-subtask {
+            background: none;
+            border: none;
+            color: #e2b1b1;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-left: 0.25rem;
         }
     </style>
 </head>
@@ -1379,6 +1416,19 @@
             <div class="modal-actions" style="margin-top:1.5rem;">
                 <button class="modal-btn primary" onclick="saveTemplate()">Save</button>
                 <button class="modal-btn secondary" onclick="closeTemplateModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Template Modal -->
+    <div class="modal unified-modal" id="deleteTemplateModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeDeleteTemplateModal()">❌</button>
+            <h3>Delete this template?</h3>
+            <p style="margin-top:0.5rem;">This cannot be undone.</p>
+            <div class="modal-actions" style="margin-top:1.5rem;">
+                <button class="modal-btn primary" onclick="confirmDeleteTemplate()">Delete</button>
+                <button class="modal-btn secondary" onclick="closeDeleteTemplateModal()">Cancel</button>
             </div>
         </div>
     </div>
@@ -2805,10 +2855,15 @@
             row.className = 'subtask-row';
             const input = document.createElement('input');
             input.type = 'text';
-            input.className = 'subtask-input';
+            input.className = 'subtask-input template-subtask-input';
             input.placeholder = 'Subtask';
             input.value = val;
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '×';
+            delBtn.className = 'delete-subtask';
+            delBtn.addEventListener('click', () => row.remove());
             row.appendChild(input);
+            row.appendChild(delBtn);
             templateSubtasks.appendChild(row);
         }
 
@@ -2877,7 +2932,7 @@
             if (t.subtasks && t.subtasks.length) {
                 const dropBtn = document.createElement('button');
                 dropBtn.textContent = '▾';
-                dropBtn.className = 'dropdown';
+                dropBtn.className = 'dropdown template-expand-icon';
                 dropBtn.addEventListener('click', () => {
                     const list = li.querySelector('.subtask-list');
                     const hidden = list.style.display === 'none';
@@ -2891,10 +2946,21 @@
             nameSpan.textContent = t.name;
             header.appendChild(nameSpan);
 
+            const controls = document.createElement('div');
+            controls.className = 'template-controls';
+
             const editBtn = document.createElement('button');
-            editBtn.innerHTML = '✏️';
+            editBtn.textContent = 'edit';
             editBtn.addEventListener('click', e => { e.stopPropagation(); openTemplateModal(t.id); });
-            header.appendChild(editBtn);
+            controls.appendChild(editBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '×';
+            delBtn.className = 'delete-template';
+            delBtn.addEventListener('click', e => { e.stopPropagation(); openDeleteTemplateModal(t.id); });
+            controls.appendChild(delBtn);
+
+            header.appendChild(controls);
 
             li.appendChild(header);
 
@@ -2964,6 +3030,26 @@
             templateToast.textContent = msg;
             templateToast.style.display = 'block';
             setTimeout(() => templateToast.style.display = 'none', 2000);
+        }
+
+        let deletingTemplateId = null;
+
+        function openDeleteTemplateModal(id) {
+            deletingTemplateId = id;
+            document.getElementById('deleteTemplateModal').classList.add('active');
+        }
+
+        function closeDeleteTemplateModal() {
+            document.getElementById('deleteTemplateModal').classList.remove('active');
+            deletingTemplateId = null;
+        }
+
+        function confirmDeleteTemplate() {
+            if (!deletingTemplateId) return;
+            templates = templates.filter(t => t.id !== deletingTemplateId);
+            saveTemplates();
+            loadTemplates();
+            closeDeleteTemplateModal();
         }
 
         addSubtaskBtn.addEventListener('click', () => addSubtaskInput());
