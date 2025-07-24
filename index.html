@@ -850,13 +850,17 @@
 
         .modal-btn {
             flex: 1;
-            padding: 0.6rem 1.2rem;
+            padding: 0.75rem 1rem;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: background 0.2s;
             position: relative;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
         }
 
         .modal-btn[title]:hover::after {
@@ -1545,9 +1549,9 @@
             <button class="modal-close" onclick="closeCompletionModal()">❌</button>
             <h3>Timer Complete! Did you finish this task?</h3>
             <div class="modal-actions">
-                <button class="modal-btn primary" onclick="completeTask()">✅ Yes</button>
-                <button class="modal-btn secondary" onclick="addMoreTime()">➕ Add more time</button>
-                <button class="modal-btn secondary" onclick="keepTaskActive()">🕗 Not yet</button>
+                <button class="modal-btn primary" onclick="completeTask()">✅ Yes, finished</button>
+                <button class="modal-btn secondary" onclick="addMoreTime()">➕ Need more time</button>
+                <button class="modal-btn secondary" onclick="keepTaskActive()">🕗 Keep working</button>
             </div>
         </div>
     </div>
@@ -3346,8 +3350,7 @@ function openSubtaskModal(tIndex) {
             audio.volume = 0.3;
             audio.play().catch(() => {});
 
-            openMoodPromptModal('after');
-
+            // Don't show mood prompt immediately - wait for completion modal response
             pinnedTaskIndex = null;
             document.getElementById('completionModal').classList.add('active');
             loadTasks();
@@ -3378,6 +3381,8 @@ function openSubtaskModal(tIndex) {
             tasks[currentTaskIndex].completedAt = new Date().toISOString();
             localStorage.setItem('tasks', JSON.stringify(tasks));
             closeCompletionModal();
+            // Show mood prompt after user confirms task completion
+            openMoodPromptModal('after');
         }
 
         function addMoreTime() {
