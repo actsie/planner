@@ -330,8 +330,9 @@
             background: none;
             border: none;
             cursor: pointer;
-            margin-left: 0.25rem;
+            margin: 0 0.1rem;
             font-size: 0.85rem;
+            color: #8B4513;
         }
 
         .break-error {
@@ -1074,6 +1075,7 @@
 
         .task-content {
             width: 100%;
+            transition: all 0.15s ease-out;
         }
 
         .task-subtasks {
@@ -1271,14 +1273,14 @@
             border: none;
             color: #8B4513;
             cursor: pointer;
-            margin-right: 0.25rem;
+            margin: 0 0.1rem;
             font-size: 0.85rem;
         }
 
         .tab-content {
             display: none;
             opacity: 0;
-            transition: opacity 0.3s ease-in-out;
+            transition: opacity 0.15s ease-out;
         }
 
         .tab-content.active {
@@ -1500,11 +1502,10 @@
             <button class="modal-close" onclick="closeSubtaskModal()">❌</button>
             <h3 id="subtaskModalTitle">Add Subtask</h3>
             <p class="floating-msg">Break this task into smaller steps</p>
-            <input type="text" id="subtaskInput" placeholder="e.g., outline paragraph" style="width:100%;margin-top:1rem;padding:0.5rem;border:2px solid #e8dfd6;border-radius:8px;">
-            <ul id="addedSubtaskList" class="subtask-checklist" style="margin-top:1rem;"></ul>
+            <div id="subtaskInputs" style="margin-top:1rem;"></div>
+            <button id="addSubtaskRowBtn" class="add-break-item" style="margin-left:0;">➕ Add subtask</button>
             <div class="modal-actions" style="margin-top:1.5rem;">
-                <button class="modal-btn primary" onclick="addSubtask(false)">Add Another</button>
-                <button class="modal-btn primary" onclick="addSubtask(true)">Done</button>
+                <button class="modal-btn primary" onclick="saveSubtasks()">Save</button>
                 <button class="modal-btn secondary" onclick="closeSubtaskModal()">Cancel</button>
             </div>
         </div>
@@ -2103,19 +2104,19 @@
                 const combinedCollapsed = (subToggle ? subCollapsed : true) && (breakToggle ? breakCollapsed : true);
                 const toggleBtn = hasToggle ? `<button class='task-toggle' onclick='toggleTaskContent(${idx})'>${combinedCollapsed ? '▸' : '▾'}</button>` : '';
                 li.innerHTML = `
-                    <div class='task-header'>
-                        <div class='task-main'>
-                            <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
-                            ${toggleBtn}<span>${task.task}</span>${infoIcon}
-                        </div>
-                        <div class='task-actions'>
-                            <button class='add-subtask' onclick='openSubtaskModal(${idx})'>➕</button>
-                            ${timerBtn}
-                            <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
-                        </div>
-                    </div>
                     <div class='task-content'>
                         ${tagsBlock}
+                        <div class='task-header'>
+                            <div class='task-main'>
+                                <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
+                                ${toggleBtn}<span>${task.task}</span>${infoIcon}
+                            </div>
+                            <div class='task-actions'>
+                                <button class='add-subtask' onclick='openSubtaskModal(${idx})'>➕</button>
+                                ${timerBtn}
+                                <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
+                            </div>
+                        </div>
                         ${subHtml}${breakHtml}
                     </div>
                 `;
@@ -2144,17 +2145,17 @@
                 const tagsBlock = timeTag ? `<div class='task-tags'>${timeTag}</div>` : '';
                 if (tagsBlock) li.classList.add('tagged-task');
                 li.innerHTML = `
-                    <div class='task-header'>
-                        <div class='task-main'>
-                            <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                            <span>${task.task}</span>${infoIcon}
-                        </div>
-                        <div class='task-actions'>
-                            <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
-                        </div>
-                    </div>
                     <div class='task-content'>
                         ${tagsBlock}
+                        <div class='task-header'>
+                            <div class='task-main'>
+                                <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
+                                <span>${task.task}</span>${infoIcon}
+                            </div>
+                            <div class='task-actions'>
+                                <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
+                            </div>
+                        </div>
                     </div>
                 `;
                 doneList.appendChild(li);
@@ -2309,63 +2310,59 @@
             if (e.key === 'Enter') saveBreakTask();
         });
 
-       function openSubtaskModal(tIndex) {
-           pendingSubtaskIndex = tIndex;
-           const title = document.getElementById('subtaskModalTitle');
-           if (title) title.textContent = `Add subtasks for: ${tasks[tIndex].task}`;
-           document.getElementById('subtaskInput').value = '';
-            const list = document.getElementById('addedSubtaskList');
-            list.innerHTML = '';
-            const existing = tasks[tIndex].subtasks || [];
-            existing.forEach((st,i) => {
-                const li = document.createElement('li');
-                li.innerHTML = `<span>${st.text || st}</span> <button class='delete-subtask' onclick='deleteExistingSubtask(${tIndex},${i})'>×</button>`;
-                list.appendChild(li);
-            });
-           document.getElementById('addSubtaskModal').classList.add('active');
-           document.getElementById('subtaskInput').focus();
-       }
+function addSubtaskRow(val = '') {
+    const row = document.createElement('div');
+    row.className = 'subtask-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'subtask-input';
+    input.placeholder = 'Subtask';
+    input.value = val;
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '×';
+    delBtn.className = 'delete-subtask';
+    delBtn.addEventListener('click', () => row.remove());
+    row.appendChild(input);
+    row.appendChild(delBtn);
+    document.getElementById('subtaskInputs').appendChild(row);
+}
+
+function openSubtaskModal(tIndex) {
+    pendingSubtaskIndex = tIndex;
+    const title = document.getElementById('subtaskModalTitle');
+    if (title) title.textContent = `Add subtasks for: ${tasks[tIndex].task}`;
+    const container = document.getElementById('subtaskInputs');
+    container.innerHTML = '';
+    const existing = tasks[tIndex].subtasks || [];
+    if (existing.length) {
+        existing.forEach(st => addSubtaskRow(st.text || st));
+    } else {
+        addSubtaskRow();
+    }
+    document.getElementById('addSubtaskModal').classList.add('active');
+}
 
         function closeSubtaskModal() {
             document.getElementById('addSubtaskModal').classList.remove('active');
             pendingSubtaskIndex = null;
-            document.getElementById('addedSubtaskList').innerHTML = '';
+            document.getElementById('subtaskInputs').innerHTML = '';
         }
 
-        function addSubtask(closeAfter) {
-            const input = document.getElementById('subtaskInput');
-            const text = input.value.trim();
-            if (text && pendingSubtaskIndex !== null) {
-                if (!tasks[pendingSubtaskIndex].subtasks) {
-                    tasks[pendingSubtaskIndex].subtasks = [];
-                }
-                tasks[pendingSubtaskIndex].subtasks.push({ text, done: false });
-                localStorage.setItem('tasks', JSON.stringify(tasks));
-                loadTasks();
-                const li = document.createElement('li');
-                li.innerHTML = `<span>${text}</span> <button class='delete-subtask' onclick='deleteExistingSubtask(${pendingSubtaskIndex},${tasks[pendingSubtaskIndex].subtasks.length-1})'>×</button>`;
-                document.getElementById('addedSubtaskList').appendChild(li);
-                input.value = '';
-            }
-            if (closeAfter) {
-                closeSubtaskModal();
+        function saveSubtasks() {
+            if (pendingSubtaskIndex === null) return;
+            const inputs = Array.from(document.querySelectorAll('#subtaskInputs .subtask-input'));
+            const subs = inputs.map(i => i.value.trim()).filter(v => v).map(t => ({ text: t, done: false }));
+            if (subs.length) {
+                tasks[pendingSubtaskIndex].subtasks = subs;
             } else {
-                input.focus();
+                delete tasks[pendingSubtaskIndex].subtasks;
             }
-        }
-
-        document.getElementById('subtaskInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') addSubtask(false);
-        });
-
-        function deleteExistingSubtask(taskIndex, subIndex) {
-            const subs = tasks[taskIndex].subtasks;
-            if (!subs) return;
-            subs.splice(subIndex, 1);
             localStorage.setItem('tasks', JSON.stringify(tasks));
-            openSubtaskModal(taskIndex);
             loadTasks();
+            closeSubtaskModal();
         }
+
+        document.getElementById('addSubtaskRowBtn').addEventListener('click', () => addSubtaskRow());
 
         // Add task on Enter key
         taskInput.addEventListener('keypress', function(e) {
