@@ -641,22 +641,36 @@
             color: #718096;
         }
 
-        .delete-note {
+        .note-actions {
             position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
+            top: 0.25rem;
+            right: 0.25rem;
+            display: flex;
+            gap: 0.25rem;
+            background: #ffffff;
+            border: 1px solid #e8dfd6;
+            border-radius: 999px;
+            padding: 0.25rem 0.5rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-5px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .note-item:hover .note-actions {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .delete-note {
             background: none;
             border: none;
             color: #e2b1b1;
             cursor: pointer;
             font-size: 1rem;
-            opacity: 0;
-            transition: opacity 0.2s;
-            padding: 0.25rem;
-        }
-
-        .note-item:hover .delete-note {
-            opacity: 1;
+            padding: 0 0.25rem;
         }
 
         .note-editor {
@@ -998,6 +1012,22 @@
             align-items: center;
             justify-content: center;
             margin-top: 0.75rem;
+            background: #ffffff;
+            border: 1px solid #e8dfd6;
+            border-radius: 999px;
+            padding: 0.25rem 0.5rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-5px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .minimized-task-timer:hover .timer-controls,
+        .task-timer-display:hover .timer-controls {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
         }
 
         .minimized-task-timer .timer-controls button,
@@ -2769,7 +2799,9 @@ function openSubtaskModal(tIndex) {
                 noteItem.innerHTML = `
                     <div class="note-item-title">${note.title || 'Untitled Note'}</div>
                     <div class="note-item-date">${formatDate(note.createdAt)}</div>
-                    <button class="delete-note" onclick="event.stopPropagation(); deleteNote('${note.id}')">×</button>
+                    <div class="note-actions">
+                        <button class="delete-note" onclick="event.stopPropagation(); deleteNote('${note.id}')">×</button>
+                    </div>
                 `;
                 
                 noteItem.onclick = () => selectNote(note.id);
