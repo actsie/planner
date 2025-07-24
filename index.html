@@ -472,7 +472,7 @@
         .timer-controls {
             display: flex;
             justify-content: center;
-            gap: 1rem;
+            gap: 0.5rem;
         }
 
         .timer-btn {
@@ -932,13 +932,31 @@
             font-size: 0.9rem;
         }
 
-        .minimized-task-timer .controls button {
-            background: none;
+        .minimized-task-timer .controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .minimized-task-timer .controls button,
+        .task-timer-display .timer-controls button {
+            width: 40px;
+            height: 40px;
+            background: #c9b3a3;
             border: none;
+            color: white;
             cursor: pointer;
-            margin-left: 0.25rem;
-            color: #7c9885;
-            font-size: 1rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .minimized-task-timer .controls button:hover,
+        .task-timer-display .timer-controls button:hover {
+            background: #b39b8b;
         }
 
         .break-item {
@@ -1489,6 +1507,12 @@
         <div class="task-timer-title" id="taskTimerTitle"></div>
         <div class="task-timer-time" id="taskTimerTime"></div>
         <div class="task-progress"><div class="task-progress-bar" id="taskProgressBar"></div></div>
+        <div class="timer-controls">
+            <button onclick="pauseTaskTimer()" id="pauseTaskBtn">⏸</button>
+            <button onclick="resumeTaskTimer()" id="resumeTaskBtn" style="display:none;">▶️</button>
+            <button onclick="addMoreTimeDuringRun()">➕</button>
+            <button onclick="cancelTaskTimer()">✖️</button>
+        </div>
     </div>
 
     <div class="task-timer-display" id="breakTimerDisplay" style="display:none;background:#e3f2fd;">
@@ -1938,12 +1962,13 @@
                     `</ul></div>`
                     : `<div class='task-subtasks'></div>`;
 
+                const timerBtn = !isActive ? `<button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>` : '';
                 li.innerHTML = `
                     <div class='task-header'>
                         <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
                         <span>${task.task}</span>${infoIcon}${subToggle}${breakToggle}
                         <button class='add-subtask' onclick='openSubtaskModal(${idx})'>➕</button>
-                        <button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>
+                        ${timerBtn}
                         <button class='delete-task' onclick='deleteTask(${idx})'>×</button>
                     </div>
                     <div class='task-content'>
@@ -3046,6 +3071,10 @@
 
             display.style.display = 'block';
             document.getElementById('minimizedTaskTimer').style.display = 'none';
+            document.getElementById('pauseTaskBtn').style.display = 'inline';
+            document.getElementById('resumeTaskBtn').style.display = 'none';
+            document.getElementById('minPauseBtn').style.display = 'inline';
+            document.getElementById('minResumeBtn').style.display = 'none';
             titleEl.textContent = task.task;
             document.getElementById('minTaskTitle').textContent = task.task;
 
@@ -3209,7 +3238,9 @@
                isTaskPaused = true;
                document.getElementById('minPauseBtn').style.display = 'none';
                document.getElementById('minResumeBtn').style.display = 'inline';
-                updateFloatingMsg();
+               document.getElementById('pauseTaskBtn').style.display = 'none';
+               document.getElementById('resumeTaskBtn').style.display = 'inline';
+               updateFloatingMsg();
            }
        }
 
@@ -3219,7 +3250,9 @@
                isTaskPaused = false;
                document.getElementById('minPauseBtn').style.display = 'inline';
                document.getElementById('minResumeBtn').style.display = 'none';
-                updateFloatingMsg();
+               document.getElementById('pauseTaskBtn').style.display = 'inline';
+               document.getElementById('resumeTaskBtn').style.display = 'none';
+               updateFloatingMsg();
            }
        }
 
