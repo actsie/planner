@@ -2102,7 +2102,7 @@
                     `</ul></div>`
                     : `<div class='task-subtasks'></div>`;
 
-                const timerBtn = (currentTaskIndex !== idx && !isActive)
+                const timerBtn = (currentTaskIndex !== idx && !isActive && pinnedTaskIndex === null)
                     ? `<button class='timer-task' onclick='startTaskTimer(${idx})'>⏱️</button>`
                     : '';
 
