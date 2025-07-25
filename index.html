@@ -1611,6 +1611,52 @@ html {
     scrollbar-width: thin;
     scrollbar-color: #c9b3a3 var(--soft-brown);
 }
+
+        /* Task completion animations */
+        .task-item.pop {
+            animation: popAndDisappear 0.6s forwards;
+        }
+
+        @keyframes popAndDisappear {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            40% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+        }
+
+        .task-sparkle {
+            position: absolute;
+            font-size: 1.2rem;
+            opacity: 0;
+            pointer-events: none;
+            animation: sparkleZoomFade 1.2s ease-out forwards;
+            z-index: 10;
+        }
+
+        @keyframes sparkleZoomFade {
+            0% {
+                transform: scale(0.8) translateX(0);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1) translateX(15px);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.3) translateX(30px);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2374,7 +2420,8 @@ html {
             activeIndices.forEach(idx => {
                 const task = tasks[idx];
                 const li = document.createElement('li');
-                li.classList.add('task');
+                li.classList.add('task', 'task-item');
+                li.dataset.index = idx;
 
                 const isActive = idx === pinnedTaskIndex && (taskTimerInterval || isTaskPaused);
                 if (isActive) li.classList.add('active-task');
@@ -2419,7 +2466,7 @@ html {
                         ${tagsBlock}
                         <div class='task-header'>
                             <div class='task-main'>
-                                <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${idx})'/>
+                                <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='handleTaskCompletion(this, this.closest(".task-item"))'/>
                                 ${toggleBtn}<span>${task.task}</span>${infoIcon}
                             </div>
                             <div class='task-actions'>
@@ -2526,8 +2573,8 @@ html {
         function addTask() {
             const taskValue = taskInput.value.trim();
             if (taskValue) {
-                tasks.push({ 
-                    task: taskValue, 
+                tasks.push({
+                    task: taskValue,
                     completed: false,
                     totalTime: 0,
                     sessions: []
@@ -2536,6 +2583,36 @@ html {
                 taskInput.value = '';
                 loadTasks();
             }
+        }
+
+        function handleTaskCompletion(checkbox, taskElement) {
+            if (!checkbox.checked) return;
+
+            const tasksContainer = document.getElementById('taskList');
+            const rect = taskElement.getBoundingClientRect();
+            const parentRect = tasksContainer.getBoundingClientRect();
+            const top = rect.top - parentRect.top;
+            const left = rect.left - parentRect.left;
+
+            taskElement.classList.add('pop');
+
+            setTimeout(() => {
+                const sparkle = document.createElement('span');
+                sparkle.className = 'task-sparkle';
+                sparkle.textContent = '✨';
+                sparkle.style.top = `${top}px`;
+                sparkle.style.left = `${left}px`;
+                sparkle.style.position = 'absolute';
+
+                tasksContainer.style.position = 'relative';
+                tasksContainer.appendChild(sparkle);
+
+                setTimeout(() => {
+                    const index = parseInt(taskElement.dataset.index);
+                    toggleTask(index);
+                    sparkle.remove();
+                }, 1200);
+            }, 600);
         }
 
         function toggleTask(index) {
