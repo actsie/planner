@@ -443,6 +443,25 @@
             margin-bottom: 0.25rem;
         }
 
+        .mood-trends {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .trend-bar {
+            width: 100%;
+            height: 12px;
+            background: #e8dfd6;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 0.25rem;
+        }
+
+        .trend-bar-inner {
+            height: 100%;
+            background: #7c9885;
+        }
+
         .mood-reason {
             margin-left: 1.2rem;
             font-style: italic;
@@ -1428,6 +1447,8 @@
                 <div class="mood-history" id="moodHistory"></div>
                 <div class="mood-timeline" id="moodTimeline"></div>
                 <button id="toggleMoodLog" class="link-button" style="display:none;">View all</button>
+                <div id="moodTrends" class="mood-trends" style="display:none;"></div>
+                <button id="toggleTrendView" class="link-button">View Trends</button>
             </div>
 
             <div class="card full-width">
@@ -2547,6 +2568,60 @@ function openSubtaskModal(tIndex) {
             showAllMoodLog = !showAllMoodLog;
             updateMoodHistory();
         });
+
+        const trendContainer = document.getElementById('moodTrends');
+        const trendBtn = document.getElementById('toggleTrendView');
+        let trendVisible = false;
+
+        trendBtn.addEventListener('click', () => {
+            trendVisible = !trendVisible;
+            if (trendVisible) {
+                loadMoodTrends();
+                trendContainer.style.display = 'block';
+                trendBtn.textContent = 'Hide Trends';
+            } else {
+                trendContainer.style.display = 'none';
+                trendBtn.textContent = 'View Trends';
+            }
+        });
+
+        function loadMoodTrends() {
+            const dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
+            const today = new Date();
+            let entries = JSON.parse(localStorage.getItem('moodLog')) || [];
+            dailyLog.forEach(d => {
+                const diff = (today - new Date(d.date)) / (1000*60*60*24);
+                if (diff <= 6 && d.moods) entries = entries.concat(d.moods);
+            });
+
+            if (!entries.length) {
+                trendContainer.textContent = 'No data yet';
+                return;
+            }
+
+            const counts = {};
+            entries.forEach(e => { counts[e.mood] = (counts[e.mood] || 0) + 1; });
+
+            const total = entries.length;
+            trendContainer.innerHTML = '';
+            const moodOrder = ['😐','🙂','😄','😮‍💨','😫'];
+            let positive = 0;
+
+            moodOrder.forEach(m => {
+                const c = counts[m] || 0;
+                if (m === '🙂' || m === '😄') positive += c;
+                const percent = Math.round((c / total) * 100);
+                const div = document.createElement('div');
+                div.innerHTML = `<span>${m} ${percent}%</span><div class='trend-bar'><div class='trend-bar-inner' style='width:${percent}%;'></div></div>`;
+                trendContainer.appendChild(div);
+            });
+
+            const summary = document.createElement('div');
+            summary.style.marginBottom = '0.5rem';
+            const positivity = Math.round((positive / total) * 100);
+            summary.textContent = `Positive moods ${positivity}% last 7 days`;
+            trendContainer.prepend(summary);
+        }
 
         // Timer functionality
         let timerInterval;
