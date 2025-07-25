@@ -2627,6 +2627,85 @@ function openSubtaskModal(tIndex) {
         const trendBtn = document.getElementById('toggleTrendView');
         let hideTrendTimeout = null;
 
+        function getWeekBounds(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diffToMonday = (day + 6) % 7;
+            const start = new Date(d);
+            start.setDate(d.getDate() - diffToMonday);
+            start.setHours(0,0,0,0);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            end.setHours(23,59,59,999);
+            return {start, end};
+        }
+
+        const moodScore = { '😄': 2, '🙂': 1, '😐': 0, '😮‍💨': -1, '😫': -2 };
+
+        function getCurrentWeek() { return getWeekBounds(new Date()); }
+        function getLastCompleteWeek() {
+            const cw = getCurrentWeek();
+            const lastStart = new Date(cw.start);
+            lastStart.setDate(lastStart.getDate() - 7);
+            return getWeekBounds(lastStart);
+        }
+
+        function getEntriesForRange(start, end) {
+            const dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
+            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            let entries = [];
+            dailyLog.forEach(d => {
+                const day = new Date(d.date);
+                if (day >= start && day <= end && d.moods) entries = entries.concat(d.moods);
+            });
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayDate = new Date(todayStr);
+            if (todayDate >= start && todayDate <= end) entries = entries.concat(moodLog);
+            return entries;
+        }
+
+        function getBestWorstDays(entries) {
+            const stats = {};
+            entries.forEach(e => {
+                const day = new Date(e.date).getDay();
+                stats[day] = stats[day] || {pos:0,total:0};
+                if (e.mood === '🙂' || e.mood === '😄') stats[day].pos++;
+                stats[day].total++;
+            });
+            let best=null,bestR=-1,worst=null,worstR=2;
+            Object.keys(stats).forEach(k => {
+                const r = stats[k].pos / stats[k].total;
+                if (r > bestR) { bestR = r; best = parseInt(k); }
+                if (r < worstR) { worstR = r; worst = parseInt(k); }
+            });
+            return {bestDay:best, worstDay:worst};
+        }
+
+        function getWeeklyTaskCorrelations(entries) {
+            const map = {};
+            entries.forEach(e => {
+                if (!e.task) return;
+                const t = map[e.task] || {pos:0,count:0};
+                if (e.mood === '🙂' || e.mood === '😄') t.pos++;
+                t.count++;
+                map[e.task] = t;
+            });
+            return Object.entries(map)
+                .sort((a,b) => b[1].count - a[1].count)
+                .slice(0,2)
+                .map(([task,data]) => `${task} ${Math.round((data.pos/data.count)*100)}% positive`);
+        }
+
+        function weekAverage(entries) {
+            if (!entries.length) return 0;
+            const sum = entries.reduce((s,e) => s + (moodScore[e.mood]||0), 0);
+            return sum / entries.length;
+        }
+
+        function getWeekComparison(curr, last) {
+            return weekAverage(curr) - weekAverage(last);
+        }
+
         function showTrendTooltip() {
             clearTimeout(hideTrendTimeout);
             loadMoodTrends();
@@ -2649,16 +2728,28 @@ function openSubtaskModal(tIndex) {
         trendTooltip.addEventListener('mouseleave', scheduleHideTrendTooltip);
 
         function loadMoodTrends() {
-            const dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
-            const today = new Date();
-            let entries = JSON.parse(localStorage.getItem('moodLog')) || [];
-            dailyLog.forEach(d => {
-                const diff = (today - new Date(d.date)) / (1000*60*60*24);
-                if (diff <= 6 && d.moods) entries = entries.concat(d.moods);
-            });
+            const cw = getCurrentWeek();
+            const lw = getLastCompleteWeek();
+            const currentWeekEntries = getEntriesForRange(cw.start, cw.end);
+            const lastWeekEntries = getEntriesForRange(lw.start, lw.end);
+
+            let entries = [];
+            let label = '';
+            if (currentWeekEntries.length >= 3) {
+                entries = currentWeekEntries;
+                label = 'This week';
+            } else if (lastWeekEntries.length >= 3) {
+                entries = lastWeekEntries;
+                label = 'Last week';
+            } else {
+                const start = new Date();
+                start.setDate(start.getDate() - 6);
+                entries = getEntriesForRange(start, new Date());
+                label = 'Last 7 days';
+            }
 
             if (!entries.length) {
-                trendContainer.textContent = 'No data yet';
+                trendContainer.textContent = 'Track for a few more days to see patterns';
                 return;
             }
 
@@ -2667,6 +2758,10 @@ function openSubtaskModal(tIndex) {
 
             const total = entries.length;
             trendContainer.innerHTML = '';
+            const title = document.createElement('div');
+            title.className = 'mood-section-title';
+            title.textContent = label;
+            trendContainer.appendChild(title);
             const moodOrder = ['😐','🙂','😄','😮‍💨','😫'];
             let positive = 0;
 
@@ -2682,17 +2777,40 @@ function openSubtaskModal(tIndex) {
             const summary = document.createElement('div');
             summary.style.marginBottom = '0.5rem';
             const positivity = Math.round((positive / total) * 100);
-            summary.textContent = `Positive moods ${positivity}% last 7 days`;
+            summary.textContent = `Positive moods ${positivity}% ${label.toLowerCase()}`;
             trendContainer.prepend(summary);
 
-            const insight1 = document.createElement('div');
-            insight1.style.marginTop = '0.5rem';
-            insight1.textContent = 'This week: 😄 after creative tasks, 😩 after admin';
-            trendContainer.appendChild(insight1);
+            const {bestDay, worstDay} = getBestWorstDays(entries);
+            const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            if (bestDay !== null) {
+                const insight1 = document.createElement('div');
+                insight1.style.marginTop = '0.5rem';
+                insight1.textContent = `Best day: ${days[bestDay]}`;
+                trendContainer.appendChild(insight1);
+            }
+            if (worstDay !== null && worstDay !== bestDay) {
+                const insight2 = document.createElement('div');
+                insight2.textContent = `Toughest day: ${days[worstDay]}`;
+                trendContainer.appendChild(insight2);
+            }
 
-            const insight2 = document.createElement('div');
-            insight2.textContent = 'Best focus time: 9-11am ✨';
-            trendContainer.appendChild(insight2);
+            const taskInsights = getWeeklyTaskCorrelations(entries);
+            if (taskInsights.length) {
+                const tDiv = document.createElement('div');
+                tDiv.textContent = `Tasks: ${taskInsights.join(', ')}`;
+                trendContainer.appendChild(tDiv);
+            }
+
+            if (currentWeekEntries.length >= 3 && lastWeekEntries.length >= 3) {
+                const diff = getWeekComparison(currentWeekEntries, lastWeekEntries);
+                const diffDiv = document.createElement('div');
+                if (Math.abs(diff) > 0.01) {
+                    diffDiv.textContent = `${diff > 0 ? 'Up' : 'Down'} ${Math.abs(diff).toFixed(2)} vs last week`;
+                } else {
+                    diffDiv.textContent = 'No change vs last week';
+                }
+                trendContainer.appendChild(diffDiv);
+            }
         }
 
         // Timer functionality
