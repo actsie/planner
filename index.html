@@ -3555,6 +3555,36 @@ function openSubtaskModal(tIndex) {
                 }
             }
 
+            const progressMsgs = {
+                empty: [
+                    "Blank doesn’t mean nothing. It means potential. 💪",
+                    "This space will fill up as you go. No rush. ✨",
+                    "Nothing here yet — but that’s okay. Starting is the hardest part. 🌱"
+                ],
+                minimal: [
+                    "Nice start! Keep the momentum going 🚀",
+                    "Every task counts! 💫",
+                    "Building good habits today ⭐"
+                ],
+                good: [
+                    "Great momentum today! 🔥",
+                    "You're on a roll! 🌟",
+                    "Productive day in progress! ✨"
+                ],
+                high: [
+                    "Amazing productivity today! 🎉",
+                    "You're crushing it! 💪",
+                    "Incredible focus today! 🏆"
+                ]
+            };
+            let msgGroup = "empty";
+            if (taskCount === 0) msgGroup = "empty";
+            else if (taskCount <= 2) msgGroup = "minimal";
+            else if (taskCount <= 5) msgGroup = "good";
+            else msgGroup = "high";
+            const randMsgs = progressMsgs[msgGroup];
+            const reportMsg = randMsgs[Math.floor(Math.random() * randMsgs.length)];
+
             reportContainer.innerHTML =
                 `<div class='mood-section-title'>📊 Today's Progress</div>`+
                 `<div>✅ ${taskCount} task${taskCount===1?'':'s'} completed</div>`+
@@ -3563,7 +3593,7 @@ function openSubtaskModal(tIndex) {
                 (topMood?`<div>😊 ${topMood} after ${moodPercent}% of tasks</div>`:'')+
                 (breakCount?`<div>☕️ ${breakCount} breaks, avg ${formatDuration(avgBreak)}</div>`:'')+
                 `<div>🔥 ${streak}-day completion streak</div>`+
-                `<div style='margin-top:0.25rem;'>Great momentum today!</div>`;
+                `<div style='margin-top:0.25rem;'>${reportMsg}</div>`;
         }
 
         function showDailyReport() {
