@@ -1822,6 +1822,14 @@ html {
                 </div>
                 <div id="doneTab" class="tab-content">
                     <ul id="doneTaskList"></ul>
+                    <div class="trend-links-container" id="dailyReportContainer">
+                        <div class="trend-wrapper">
+                            <span id="viewDailyReport" class="trend-link">View Daily Report</span>
+                            <div id="dailyReportTooltip" class="trend-tooltip">
+                                <div id="dailyReportContent" class="mood-trends"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div id="taskInfoCard" class="task-info-card"></div>
             </div>
@@ -3478,6 +3486,104 @@ function openSubtaskModal(tIndex) {
         energyBtn.addEventListener('mouseleave', scheduleHideEnergyTooltip);
         energyTooltip.addEventListener('mouseenter', showEnergyTooltip);
         energyTooltip.addEventListener('mouseleave', scheduleHideEnergyTooltip);
+
+        const reportContainer = document.getElementById('dailyReportContent');
+        const reportTooltip = document.getElementById('dailyReportTooltip');
+        const reportBtn = document.getElementById('viewDailyReport');
+        let hideReportTimeout = null;
+
+        function formatDuration(mins) {
+            const h = Math.floor(mins / 60);
+            const m = Math.round(mins % 60);
+            return h ? `${h}h ${m}m` : `${m}m`;
+        }
+
+        function loadDailyReport() {
+            const doneTasks = tasks.filter(t => t.completed && isDateToday(t.completedAt));
+            const taskCount = doneTasks.length;
+
+            let focusMinutes = 0;
+            tasks.forEach(t => {
+                (t.sessions || []).forEach(s => {
+                    if (isDateToday(s.completedAt)) focusMinutes += s.duration || 0;
+                });
+            });
+
+            const avgMinutes = taskCount ? focusMinutes / taskCount : 0;
+
+            const hourBuckets = {};
+            tasks.forEach(t => {
+                (t.sessions || []).forEach(s => {
+                    if (isDateToday(s.completedAt)) {
+                        const h = new Date(s.completedAt).getHours();
+                        hourBuckets[h] = (hourBuckets[h] || 0) + s.duration;
+                    }
+                });
+            });
+            const peakHour = Object.keys(hourBuckets).reduce((a,b)=> hourBuckets[b] > (hourBuckets[a]||0) ? b : a, null);
+            const peakLabel = peakHour !== null ? `${((peakHour%12)||12)}${peakHour>=12?'pm':'am'}-${(((parseInt(peakHour)+1)%12)||12)}${peakHour+1>=12?'pm':'am'}` : null;
+
+            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            const afterMoods = moodLog.filter(m => m.type === 'after' && isDateToday(m.date));
+            const moodCounts = {};
+            afterMoods.forEach(m => { moodCounts[m.mood] = (moodCounts[m.mood]||0)+1; });
+            const topMood = Object.keys(moodCounts).reduce((a,b)=> moodCounts[b] > (moodCounts[a]||0) ? b : a, afterMoods[0]?.mood || '');
+            const moodPercent = afterMoods.length ? Math.round((moodCounts[topMood]/afterMoods.length)*100) : 0;
+
+            const breakLog = JSON.parse(localStorage.getItem('breakLog')) || [];
+            const breaksToday = breakLog.filter(b => isDateToday(b.date));
+            const breakCount = breaksToday.length;
+            const avgBreak = breakCount ? breaksToday.reduce((a,b)=>a+b.duration,0)/breakCount : 0;
+
+            const past = JSON.parse(localStorage.getItem('dailyLog')) || [];
+            let streak = 0;
+            const day = new Date();
+            while (true) {
+                const dStr = day.toISOString().split('T')[0];
+                let has = false;
+                if (isDateToday(dStr)) {
+                    has = taskCount > 0;
+                } else {
+                    const entry = past.find(e => e.date === dStr);
+                    if (entry && entry.tasks.some(t => t.completed)) has = true;
+                }
+                if (has) {
+                    streak++;
+                    day.setDate(day.getDate()-1);
+                } else {
+                    break;
+                }
+            }
+
+            reportContainer.innerHTML =
+                `<div class='mood-section-title'>📊 Today's Progress</div>`+
+                `<div>✅ ${taskCount} task${taskCount===1?'':'s'} completed</div>`+
+                `<div>⏱️ ${formatDuration(focusMinutes)} focused work</div>`+
+                (peakLabel?`<div>📈 Peak focus: ${peakLabel}</div>`:'')+
+                (topMood?`<div>😊 ${topMood} after ${moodPercent}% of tasks</div>`:'')+
+                (breakCount?`<div>☕️ ${breakCount} breaks, avg ${formatDuration(avgBreak)}</div>`:'')+
+                `<div>🔥 ${streak}-day completion streak</div>`+
+                `<div style='margin-top:0.25rem;'>Great momentum today!</div>`;
+        }
+
+        function showDailyReport() {
+            clearTimeout(hideReportTimeout);
+            loadDailyReport();
+            reportTooltip.style.display = 'block';
+            requestAnimationFrame(() => reportTooltip.classList.add('show'));
+        }
+
+        function scheduleHideDailyReport() {
+            hideReportTimeout = setTimeout(() => {
+                reportTooltip.classList.remove('show');
+                setTimeout(() => { reportTooltip.style.display = 'none'; }, 200);
+            }, 400);
+        }
+
+        reportBtn.addEventListener('mouseenter', showDailyReport);
+        reportBtn.addEventListener('mouseleave', scheduleHideDailyReport);
+        reportTooltip.addEventListener('mouseenter', showDailyReport);
+        reportTooltip.addEventListener('mouseleave', scheduleHideDailyReport);
 
         // Timer functionality
         let timerInterval;
