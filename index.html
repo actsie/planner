@@ -3924,7 +3924,10 @@ function openSubtaskModal(tIndex) {
             taskTimerInterval = setInterval(() => {
                 if (taskTimeRemaining > 0) {
                     taskTimeRemaining--;
-                    if (!halfwayPrompted && taskOriginalDuration >= 15 * 60 && taskTimeRemaining <= taskOriginalDuration / 2) {
+                    if (taskTimeRemaining % 30 === 0) {
+                        console.log('Timer check:', taskTimeRemaining, 'of', taskOriginalDuration, 'halfway at:', taskOriginalDuration/2);
+                    }
+                    if (!halfwayPrompted && taskOriginalDuration >= 10 * 60 && taskTimeRemaining <= taskOriginalDuration / 2) {
                         halfwayPrompted = true;
                         openMoodPromptModal('midway');
                     }
