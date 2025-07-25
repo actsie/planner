@@ -1054,7 +1054,7 @@
             padding: 0;
             font-size: inherit;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            width: 9rem;
+            width: 7rem; /* smaller width */
             height: auto;
         }
 
@@ -1064,10 +1064,10 @@
             display: block;
             margin: 0;
             float: right;
-            width: 2.5rem;
-            height: 2.5rem;
+            width: 2rem; /* smaller circle */
+            height: 2rem;
             background: #b5a99f;
-            border-radius: 1.625rem;
+            border-radius: 1.25rem;
         }
 
         .add-to-today-btn .icon {
@@ -1081,19 +1081,19 @@
 
         .add-to-today-btn .icon.arrow {
             transition: all 0.45s cubic-bezier(0.65,0,.076,1);
-            right: 0.25rem;
-            width: 1rem;
-            height: 0.125rem;
+            right: 0.2rem;
+            width: 0.75rem; /* scale down arrow */
+            height: 0.1rem;
             background: none;
         }
 
         .add-to-today-btn .icon.arrow::before {
             position: absolute;
             content: '';
-            top: -0.25rem;
+            top: -0.2rem;
             left: 0.0625rem;
-            width: 0.55rem;
-            height: 0.55rem;
+            width: 0.45rem;
+            height: 0.45rem;
             border-top: 0.125rem solid white;
             border-left: 0.125rem solid white;
             transform: rotate(-45deg);
@@ -1106,14 +1106,14 @@
             left: 0;
             right: 0;
             bottom: 0;
-            padding: 0.65rem 0;
+            padding: 0.45rem 0;
             margin: 0 2rem 0 0;
-            color: white;
+            color: #b5a99f; /* visible by default */
             font-weight: 500;
             line-height: 1.6;
             text-align: center;
             text-transform: none;
-            font-size: 0.875rem;
+            font-size: 0.75rem; /* smaller font */
         }
 
         .add-to-today-btn:hover .circle {
@@ -1122,11 +1122,11 @@
 
         .add-to-today-btn:hover .icon.arrow {
             background: white;
-            transform: translate(-0.75rem, 0);
+            transform: translate(-0.5rem, 0);
         }
 
         .add-to-today-btn:hover .button-text {
-            color: white;
+            color: #d8cfc6; /* lightened brown */
         }
 
         .modal-close {
