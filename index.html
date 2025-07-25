@@ -1631,6 +1631,12 @@ html {
             }
         }
 
+        /* Prevent horizontal scrollbar during task animations */
+        .tasks-container, #todayTasks {
+            overflow-x: hidden;
+            position: relative;
+        }
+
         .task-sparkle {
             position: absolute;
             font-size: 1.2rem;
@@ -1638,6 +1644,7 @@ html {
             pointer-events: none;
             animation: sparkleZoomFade 1.2s ease-out forwards;
             z-index: 10;
+            max-width: calc(100% - 50px); /* Prevent overflow */
         }
 
         @keyframes sparkleZoomFade {
@@ -1649,12 +1656,85 @@ html {
                 opacity: 1;
             }
             50% {
-                transform: scale(1.1) translateX(15px);
+                transform: scale(1.1) translateX(10px); /* Reduced from 15px */
                 opacity: 1;
             }
             100% {
-                transform: scale(1.3) translateX(30px);
+                transform: scale(1.3) translateX(20px); /* Reduced from 30px */
                 opacity: 0;
+            }
+        }
+
+        /* Fixed width floating timer */
+        .floating-timer, #floatingTimer {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 280px;
+            min-width: 280px;
+            max-width: 280px;
+            padding: 16px;
+            background: #faf8f3;
+            border: 1px solid #e5e1dc;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        /* Truncate long task names */
+        .floating-timer .task-name, #floatingTimer .task-name {
+            font-weight: 500;
+            font-size: 14px;
+            color: #7c9885;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        /* Timer display styling */
+        .floating-timer .timer-display, #floatingTimer .timer-display {
+            font-size: 24px;
+            font-weight: 600;
+            color: #5a5a5a;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        /* Progress bar container */
+        .floating-timer .progress-container, #floatingTimer .progress-container {
+            width: 100%;
+            height: 4px;
+            background: #e5e1dc;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 640px) {
+            .floating-timer, #floatingTimer {
+                width: calc(100vw - 40px);
+                max-width: 280px;
+                left: 20px;
+                right: 20px;
+            }
+
+            /* Reduce sparkle animation on mobile */
+            @keyframes sparkleZoomFade {
+                0% {
+                    transform: scale(0.8) translateX(0);
+                    opacity: 0;
+                }
+                50% {
+                    transform: scale(1.1) translateX(5px); /* Even smaller movement */
+                    opacity: 1;
+                }
+                100% {
+                    transform: scale(1.3) translateX(10px);
+                    opacity: 0;
+                }
             }
         }
     </style>
