@@ -515,6 +515,28 @@
             text-align: center;
         }
 
+        .mood-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .trend-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .trend-tag {
+            background: #e8dfd6;
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            color: #4a5568;
+        }
+
         .trend-tooltip {
             position: absolute;
             left: 50%;
@@ -1495,17 +1517,21 @@
                 </div>
                 <div class="mood-history" id="moodHistory"></div>
                 <div class="mood-timeline" id="moodTimeline"></div>
-                <button id="toggleMoodLog" class="link-button" style="display:none;">View all</button>
-                <div class="trend-wrapper">
-                    <span id="toggleTrendView" class="link-button">View Trends</span>
-                    <div id="trendTooltip" class="trend-tooltip">
-                        <div id="moodTrends" class="mood-trends"></div>
-                    </div>
-                </div>
-                <div class="trend-wrapper">
-                    <span id="toggleEnergyView" class="link-button">Energy Insights</span>
-                    <div id="energyTooltip" class="trend-tooltip">
-                        <div id="energyInsights" class="mood-trends"></div>
+                <div class="mood-actions">
+                    <button id="toggleMoodLog" class="link-button" style="display:none;">View all</button>
+                    <div class="trend-buttons">
+                        <div class="trend-wrapper">
+                            <span id="toggleTrendView" class="trend-tag">View Trends</span>
+                            <div id="trendTooltip" class="trend-tooltip">
+                                <div id="moodTrends" class="mood-trends"></div>
+                            </div>
+                        </div>
+                        <div class="trend-wrapper">
+                            <span id="toggleEnergyView" class="trend-tag">Energy Insights</span>
+                            <div id="energyTooltip" class="trend-tooltip">
+                                <div id="energyInsights" class="mood-trends"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
