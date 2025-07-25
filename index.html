@@ -1502,6 +1502,12 @@
                         <div id="moodTrends" class="mood-trends"></div>
                     </div>
                 </div>
+                <div class="trend-wrapper">
+                    <span id="toggleEnergyView" class="link-button">Energy Insights</span>
+                    <div id="energyTooltip" class="trend-tooltip">
+                        <div id="energyInsights" class="mood-trends"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="card full-width">
@@ -2812,6 +2818,109 @@ function openSubtaskModal(tIndex) {
                 trendContainer.appendChild(diffDiv);
             }
         }
+
+        const energyContainer = document.getElementById('energyInsights');
+        const energyTooltip = document.getElementById('energyTooltip');
+        const energyBtn = document.getElementById('toggleEnergyView');
+        let hideEnergyTimeout = null;
+
+        function getAllMoodEntries() {
+            const dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
+            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            let entries = [];
+            dailyLog.forEach(d => { if (d.moods) entries = entries.concat(d.moods); });
+            return entries.concat(moodLog);
+        }
+
+        function hourLabel(h) {
+            const period = h >= 12 ? 'pm' : 'am';
+            let hr = h % 12;
+            if (hr === 0) hr = 12;
+            return `${hr}${period}`;
+        }
+
+        function loadEnergyInsights() {
+            const entries = getAllMoodEntries();
+            energyContainer.innerHTML = '';
+            if (entries.length < 14) {
+                energyContainer.textContent = 'Track a bit more to find your optimal hours ⏰';
+                return;
+            }
+
+            const useNarrow = entries.length >= 21;
+            const segments = [];
+            if (useNarrow) {
+                for (let h = 6; h < 22; h += 2) {
+                    segments.push({ start: h, end: h + 2, label: `${hourLabel(h)}-${hourLabel(h + 2)}` });
+                }
+            } else {
+                segments.push({ start: 6, end: 11, label: 'morning (6-11am)' });
+                segments.push({ start: 11, end: 15, label: 'midday (11am-3pm)' });
+                segments.push({ start: 15, end: 18, label: 'afternoon (3-6pm)' });
+                segments.push({ start: 18, end: 22, label: 'evening (6-10pm)' });
+            }
+
+            segments.forEach(s => { s.score = 0; s.count = 0; });
+            entries.forEach(e => {
+                const h = new Date(e.date).getHours();
+                const score = moodScore[e.mood] || 0;
+                segments.forEach(s => { if (h >= s.start && h < s.end) { s.score += score; s.count++; } });
+            });
+            segments.forEach(s => { s.avg = s.count ? s.score / s.count : -Infinity; });
+            const valid = segments.filter(s => s.count > 0);
+            if (!valid.length) {
+                energyContainer.textContent = 'Track a bit more to see patterns';
+                return;
+            }
+
+            const best = valid.reduce((a, b) => (b.avg > a.avg ? b : a));
+            const worst = valid.reduce((a, b) => (b.avg < a.avg ? b : a));
+
+            const summary = document.createElement('div');
+            if (entries.length >= 21) {
+                summary.textContent = `Your peak energy: ${best.label} ⚡ (based on ${entries.length} sessions)`;
+            } else {
+                summary.textContent = `You seem most focused in the ${best.label.split(' ')[0]} ☀️`;
+            }
+            energyContainer.appendChild(summary);
+
+            if (worst.avg < best.avg - 0.5) {
+                const crash = document.createElement('div');
+                crash.textContent = `Avoid heavy tasks ${useNarrow ? 'around ' + worst.label : 'after ' + worst.label.split(' ')[0]} 😴`;
+                energyContainer.appendChild(crash);
+            }
+
+            if (entries.length >= 35) {
+                const weekdays = entries.filter(e => { const d = new Date(e.date).getDay(); return d >= 1 && d <= 5; });
+                const weekends = entries.filter(e => { const d = new Date(e.date).getDay(); return d === 0 || d === 6; });
+                const weekAvg = weekAverage(weekdays);
+                const endAvg = weekAverage(weekends);
+                if (Math.abs(weekAvg - endAvg) > 0.1) {
+                    const wd = document.createElement('div');
+                    wd.textContent = weekAvg > endAvg ? 'Weekdays show higher energy than weekends' : 'Weekends show higher energy than weekdays';
+                    energyContainer.appendChild(wd);
+                }
+            }
+        }
+
+        function showEnergyTooltip() {
+            clearTimeout(hideEnergyTimeout);
+            loadEnergyInsights();
+            energyTooltip.style.display = 'block';
+            requestAnimationFrame(() => energyTooltip.classList.add('show'));
+        }
+
+        function scheduleHideEnergyTooltip() {
+            hideEnergyTimeout = setTimeout(() => {
+                energyTooltip.classList.remove('show');
+                setTimeout(() => { energyTooltip.style.display = 'none'; }, 200);
+            }, 400);
+        }
+
+        energyBtn.addEventListener('mouseenter', showEnergyTooltip);
+        energyBtn.addEventListener('mouseleave', scheduleHideEnergyTooltip);
+        energyTooltip.addEventListener('mouseenter', showEnergyTooltip);
+        energyTooltip.addEventListener('mouseleave', scheduleHideEnergyTooltip);
 
         // Timer functionality
         let timerInterval;
