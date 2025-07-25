@@ -1041,6 +1041,83 @@
             background: #d8cfc6;
         }
 
+        .add-to-today-btn {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            outline: none;
+            border: 0;
+            background: transparent;
+            padding: 0;
+            font-family: inherit;
+            width: auto;
+            height: auto;
+        }
+
+        .add-to-today-btn .circle {
+            transition: all 0.45s cubic-bezier(0.65,0,.076,1);
+            position: relative;
+            display: block;
+            margin: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            background: #7c9885;
+            border-radius: 1.25rem;
+        }
+
+        .add-to-today-btn .circle .icon.arrow {
+            transition: all 0.45s cubic-bezier(0.65,0,.076,1);
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0.5rem;
+            margin: auto;
+            width: 1rem;
+            height: 0.125rem;
+            background: none;
+        }
+
+        .add-to-today-btn .circle .icon.arrow::before {
+            position: absolute;
+            content: '';
+            top: -0.25rem;
+            right: 0.0625rem;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-top: 0.125rem solid #faf8f3;
+            border-right: 0.125rem solid #faf8f3;
+            transform: rotate(45deg);
+        }
+
+        .add-to-today-btn .button-text {
+            transition: all 0.45s cubic-bezier(0.65,0,.076,1);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 0.6rem 0;
+            margin: 0 0 0 1.5rem;
+            color: #7c9885;
+            font-weight: 600;
+            line-height: 1.6;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .add-to-today-btn:hover .circle {
+            width: 100%;
+        }
+
+        .add-to-today-btn:hover .circle .icon.arrow {
+            background: #faf8f3;
+            transform: translate(0.8rem, 0);
+        }
+
+        .add-to-today-btn:hover .button-text {
+            color: #faf8f3;
+        }
+
         .modal-close {
             position: absolute;
             top: 8px;
@@ -1208,6 +1285,26 @@
             font-size: 0.85rem;
             color: #a0aec0;
             margin-bottom: 0.5rem;
+        }
+
+        .template-added-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #7c9885;
+            color: #faf8f3;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 1;
+            transform: translateX(0);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+
+        .template-added-message.fade-out {
+            opacity: 0;
+            transform: translateX(-30px);
         }
 
         .task-timer-title {
@@ -1548,8 +1645,11 @@ html {
                     </div>
                     <input type="text" id="templateFilter" placeholder="Filter templates" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;border:1px solid #e8dfd6;border-radius:8px;">
                     <ul id="templateList"></ul>
-                    <button id="addToTodayBtn" class="modal-btn primary" style="display:none;margin-top:0.5rem;">Add to Today</button>
-                    <div id="templateToast" class="floating-msg" style="display:none;margin-top:0.5rem;"></div>
+                    <button id="addToTodayBtn" class="add-to-today-btn" style="display:none;margin-top:0.5rem;">
+                        <span class="circle"><span class="icon arrow"></span></span>
+                        <span class="button-text">Add to Today</span>
+                    </button>
+                    <div id="templateToast" class="template-added-message" style="display:none;"></div>
                 </div>
                 <div id="doneTab" class="tab-content">
                     <ul id="doneTaskList"></ul>
@@ -3663,6 +3763,7 @@ function openSubtaskModal(tIndex) {
         function addTemplatesToToday() {
             const selected = Array.from(templateList.querySelectorAll('.select-template:checked'));
             if (!selected.length) return;
+            const names = [];
             selected.forEach(cb => {
                 const id = cb.closest('.template-item').dataset.id;
                 const t = templates.find(tmp => tmp.id === id);
@@ -3672,18 +3773,29 @@ function openSubtaskModal(tIndex) {
                     newTask.subtasks = t.subtasks.map(s => ({ text: s, done: false }));
                 }
                 tasks.push(newTask);
+                names.push(t.name);
                 cb.checked = false;
             });
             localStorage.setItem('tasks', JSON.stringify(tasks));
             loadTasks();
             updateAddButton();
-            showTemplateToast(`${selected.length} template${selected.length>1?'s':''} added to Today's Tasks`);
+            let msg;
+            if (names.length === 1) {
+                msg = `"${names[0]}" added to today's tasks`;
+            } else {
+                msg = `${names.length} templates added to Today's Tasks`;
+            }
+            showTemplateToast(msg);
         }
 
         function showTemplateToast(msg) {
             templateToast.textContent = msg;
+            templateToast.classList.remove('fade-out');
             templateToast.style.display = 'block';
-            setTimeout(() => templateToast.style.display = 'none', 2000);
+            setTimeout(() => {
+                templateToast.classList.add('fade-out');
+                setTimeout(() => templateToast.style.display = 'none', 400);
+            }, 1500);
         }
 
         let deletingTemplateId = null;
