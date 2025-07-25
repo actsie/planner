@@ -200,6 +200,12 @@
             overflow-y: auto;
         }
 
+        #doneTaskList {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
         .task {
             display: flex;
             flex-direction: column;
@@ -1264,6 +1270,20 @@
             transition: background 0.2s;
         }
 
+        .minimized-task-timer .timer-controls button.complete-btn,
+        .task-timer-display .timer-controls button.complete-btn {
+            background: #7c9885;
+            color: #faf8f3;
+            border: 1px solid #7c9885;
+            font-weight: 600;
+        }
+
+        .minimized-task-timer .timer-controls button.complete-btn:hover,
+        .task-timer-display .timer-controls button.complete-btn:hover {
+            background: #6d8374;
+            transform: scale(1.1);
+        }
+
         .minimized-task-timer .timer-controls button:hover,
         .task-timer-display .timer-controls button:hover {
             background: #b39b8b;
@@ -1712,6 +1732,26 @@ html {
             margin-bottom: 12px;
         }
 
+        /* Timer completion pop animation */
+        @keyframes timerCompletePop {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            30% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+            60% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+        }
+
         /* Mobile adjustments */
         @media (max-width: 640px) {
             .floating-timer, #floatingTimer {
@@ -1843,6 +1883,7 @@ html {
                     <div class="timer-controls">
                         <button onclick="pauseTaskTimer()" id="minPauseBtn">⏸️</button>
                         <button onclick="resumeTaskTimer()" id="minResumeBtn" style="display:none;">▶️</button>
+                        <button onclick="completeCurrentTask()" title="Complete">✓</button>
                         <button onclick="cancelTaskTimer()">✖️</button>
                         <button onclick="addMoreTimeDuringRun()">➕</button>
                         <button onclick="maximizeTaskTimer()">🔼</button>
@@ -2083,6 +2124,7 @@ html {
         <div class="timer-controls">
             <button onclick="pauseTaskTimer()" id="pauseTaskBtn">⏸</button>
             <button onclick="resumeTaskTimer()" id="resumeTaskBtn" style="display:none;">▶️</button>
+            <button onclick="completeCurrentTask()" title="Mark as complete">✓</button>
             <button onclick="addMoreTimeDuringRun()">➕</button>
             <button onclick="cancelTaskTimer()">✖️</button>
         </div>
@@ -2547,7 +2589,7 @@ html {
                         <div class='task-header'>
                             <div class='task-main'>
                                 <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='handleTaskCompletion(this, this.closest(".task-item"))'/>
-                                ${toggleBtn}<span>${task.task}</span>${infoIcon}
+                                ${toggleBtn}<span class='task-text'>${task.task}</span>${infoIcon}
                             </div>
                             <div class='task-actions'>
                                 <button class='add-subtask' onclick='openSubtaskModal(${idx})'>➕</button>
@@ -2594,7 +2636,7 @@ html {
                         <div class='task-header'>
                             <div class='task-main'>
                                 <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
-                                <span>${task.task}</span>${infoIcon}
+                                <span class='task-text'>${task.task}</span>${infoIcon}
                             </div>
                             <div class='task-actions'>
                                 <button class='delete-task' onclick='deleteTask(${actualIndex})'>×</button>
@@ -2675,6 +2717,14 @@ html {
         function handleTaskCompletion(checkbox, taskElement) {
             if (!checkbox.checked) return;
 
+            const activeTaskName = taskElement.querySelector('.task-text')?.textContent;
+            const floatingTimer = document.getElementById('taskTimerDisplay');
+            const timerTaskName = floatingTimer?.querySelector('#taskTimerTitle')?.textContent;
+
+            if (floatingTimer && timerTaskName === activeTaskName) {
+                autoCompleteTimer();
+            }
+
             const tasksContainer = document.getElementById('taskList');
             const rect = taskElement.getBoundingClientRect();
             const parentRect = tasksContainer.getBoundingClientRect();
@@ -2717,6 +2767,45 @@ html {
             tasks.splice(index, 1);
             localStorage.setItem('tasks', JSON.stringify(tasks));
             loadTasks();
+        }
+
+        function autoCompleteTimer() {
+            const floating = document.getElementById('taskTimerDisplay');
+            const collapsed = document.getElementById('minimizedTaskTimer');
+            const timerEl = isTimerMinimized ? collapsed : floating;
+            if (!timerEl) return;
+
+            timerEl.style.animation = 'timerCompletePop 0.8s ease-out forwards';
+            if (taskTimerInterval) clearInterval(taskTimerInterval);
+            taskTimerInterval = null;
+            logCurrentSession();
+
+            setTimeout(() => {
+                if (floating) floating.style.display = 'none';
+                if (collapsed) collapsed.style.display = 'none';
+                currentTaskIndex = null;
+                pinnedTaskIndex = null;
+                isTimerMinimized = false;
+                isTaskPaused = false;
+                isRunning = false;
+                loadTasks();
+                openMoodPromptModal('after');
+            }, 800);
+        }
+
+        function completeCurrentTask() {
+            const floating = document.getElementById('taskTimerDisplay');
+            if (!floating) return;
+            const taskName = document.getElementById('taskTimerTitle').textContent;
+            const taskElements = document.querySelectorAll('#taskList .task-item');
+            const match = Array.from(taskElements).find(t => t.querySelector('.task-text')?.textContent === taskName);
+            if (match) {
+                const cb = match.querySelector('input[type="checkbox"]');
+                cb.checked = true;
+                handleTaskCompletion(cb, match);
+            } else {
+                autoCompleteTimer();
+            }
         }
 
         function toggleBreakItem(tIndex, iIndex) {
