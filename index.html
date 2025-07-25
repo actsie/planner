@@ -198,12 +198,16 @@
             list-style: none;
             max-height: 300px;
             overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
         }
 
         #doneTaskList {
             list-style: none;
             max-height: 300px;
             overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
         }
 
         .task {
@@ -533,6 +537,10 @@
             gap: 20px;
             margin-top: 12px;
             position: relative; /* allow tooltips to center to card width */
+        }
+
+        #dailyReportContainer {
+            margin-top: 24px;
         }
 
         .trend-link {
@@ -1635,6 +1643,7 @@ html {
         /* Task completion animations */
         .task-item.pop {
             animation: popAndDisappear 0.6s forwards;
+            transform-origin: left center;
         }
 
         @keyframes popAndDisappear {
@@ -1824,7 +1833,7 @@ html {
                     <ul id="doneTaskList"></ul>
                     <div class="trend-links-container" id="dailyReportContainer">
                         <div class="trend-wrapper">
-                            <span id="viewDailyReport" class="trend-link">View Daily Report</span>
+                            <span id="viewDailyReport" class="trend-link">Daily Report</span>
                             <div id="dailyReportTooltip" class="trend-tooltip">
                                 <div id="dailyReportContent" class="mood-trends"></div>
                             </div>
@@ -2691,6 +2700,11 @@ html {
             const doneTasks = tasks
                 .filter(task => task.completed && isDateToday(task.completedAt))
                 .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+
+            const reportCont = document.getElementById('dailyReportContainer');
+            if (reportCont) {
+                reportCont.style.display = doneTasks.length ? 'flex' : 'none';
+            }
             doneTasks.forEach(task => {
                 const actualIndex = tasks.indexOf(task);
                 const li = document.createElement('li');
@@ -2806,7 +2820,7 @@ html {
             const rect = taskElement.getBoundingClientRect();
             const parentRect = tasksContainer.getBoundingClientRect();
             const top = rect.top - parentRect.top;
-            const left = rect.left - parentRect.left;
+            const left = rect.left - parentRect.left + rect.width / 2 - 10;
 
             taskElement.classList.add('pop');
 
@@ -2852,12 +2866,14 @@ html {
                 onTaskRestoreByName(tasks[index].task);
             }
             localStorage.setItem('tasks', JSON.stringify(tasks));
+            updateDailyReportData();
             loadTasks();
         }
 
         function deleteTask(index) {
             tasks.splice(index, 1);
             localStorage.setItem('tasks', JSON.stringify(tasks));
+            updateDailyReportData();
             loadTasks();
         }
 
@@ -3491,6 +3507,22 @@ function openSubtaskModal(tIndex) {
         const reportTooltip = document.getElementById('dailyReportTooltip');
         const reportBtn = document.getElementById('viewDailyReport');
         let hideReportTimeout = null;
+        let currentReportMsg = null;
+
+        function updateDailyReportData() {
+            const doneTasks = tasks.filter(t => t.completed && isDateToday(t.completedAt));
+            let focusMinutes = 0;
+            tasks.forEach(t => {
+                (t.sessions || []).forEach(s => {
+                    if (isDateToday(s.completedAt)) focusMinutes += s.duration || 0;
+                });
+            });
+            localStorage.setItem('dailyReportData', JSON.stringify({
+                date: new Date().toISOString().split('T')[0],
+                completed: doneTasks.length,
+                focusMinutes
+            }));
+        }
 
         function formatDuration(mins) {
             const h = Math.floor(mins / 60);
@@ -3498,7 +3530,7 @@ function openSubtaskModal(tIndex) {
             return h ? `${h}h ${m}m` : `${m}m`;
         }
 
-        function loadDailyReport() {
+        function loadDailyReport(msg) {
             const doneTasks = tasks.filter(t => t.completed && isDateToday(t.completedAt));
             const taskCount = doneTasks.length;
 
@@ -3583,7 +3615,7 @@ function openSubtaskModal(tIndex) {
             else if (taskCount <= 5) msgGroup = "good";
             else msgGroup = "high";
             const randMsgs = progressMsgs[msgGroup];
-            const reportMsg = randMsgs[Math.floor(Math.random() * randMsgs.length)];
+            const reportMsg = msg || randMsgs[Math.floor(Math.random() * randMsgs.length)];
 
             reportContainer.innerHTML =
                 `<div class='mood-section-title'>📊 Today's Progress</div>`+
@@ -3594,11 +3626,12 @@ function openSubtaskModal(tIndex) {
                 (breakCount?`<div>☕️ ${breakCount} breaks, avg ${formatDuration(avgBreak)}</div>`:'')+
                 `<div>🔥 ${streak}-day completion streak</div>`+
                 `<div style='margin-top:0.25rem;'>${reportMsg}</div>`;
+            return reportMsg;
         }
 
         function showDailyReport() {
             clearTimeout(hideReportTimeout);
-            loadDailyReport();
+            currentReportMsg = loadDailyReport(currentReportMsg);
             reportTooltip.style.display = 'block';
             requestAnimationFrame(() => reportTooltip.classList.add('show'));
         }
@@ -3606,7 +3639,7 @@ function openSubtaskModal(tIndex) {
         function scheduleHideDailyReport() {
             hideReportTimeout = setTimeout(() => {
                 reportTooltip.classList.remove('show');
-                setTimeout(() => { reportTooltip.style.display = 'none'; }, 200);
+                setTimeout(() => { reportTooltip.style.display = 'none'; currentReportMsg = null; }, 200);
             }, 400);
         }
 
@@ -4487,6 +4520,7 @@ function openSubtaskModal(tIndex) {
                 completedAt: new Date().toISOString()
             });
             localStorage.setItem('tasks', JSON.stringify(tasks));
+            updateDailyReportData();
 
             const card = document.getElementById('taskInfoCard');
             if (card.style.display === 'block' && parseInt(card.dataset.index) === currentTaskIndex) {
