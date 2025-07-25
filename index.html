@@ -1871,9 +1871,10 @@ html {
                 </div>
             </div>
 
-            <div class="card full-width">
+            <div class="card full-width" id="timerSection">
                 <h2>Focus Timer</h2>
                 <div id="floatingMsg" class="floating-msg" style="display:none;">Active timer is running elsewhere (see top-right)</div>
+                <div class="active-timer-message" style="display:none;">Timer running...</div>
                 <div id="minimizedTaskTimer" class="minimized-task-timer">
                     <div>
                         <span id="minTaskTitle"></span>
@@ -2180,6 +2181,74 @@ html {
         let pinnedTaskIndex = null;
         let pendingMoodType = null;
         let halfwayPrompted = false;
+
+        const TimerState = {
+            isActive: false,
+            taskName: null,
+            timeRemaining: 0,
+            originalDuration: 0,
+            halfwayPrompted: false,
+            interval: null,
+
+            start(name, duration) {
+                this.isActive = true;
+                this.taskName = name;
+                this.timeRemaining = duration;
+                this.originalDuration = duration;
+                this.halfwayPrompted = false;
+                updateTimerUI('running');
+            },
+
+            stop() {
+                this.isActive = false;
+                this.taskName = null;
+                this.timeRemaining = 0;
+                this.originalDuration = 0;
+                this.halfwayPrompted = false;
+                if (this.interval) {
+                    clearInterval(this.interval);
+                    this.interval = null;
+                }
+                updateTimerUI('stopped');
+            },
+
+            complete() {
+                this.stop();
+                const floatingTimer = document.getElementById('floatingTimer');
+                if (floatingTimer) {
+                    floatingTimer.remove();
+                }
+            }
+        };
+
+        function updateTimerUI(state) {
+            const timerSection = document.getElementById('timerSection');
+            const activeTimerMessage = timerSection?.querySelector('.active-timer-message');
+            const timerControls = timerSection?.querySelector('.timer-controls');
+
+            switch(state) {
+                case 'stopped':
+                    if (activeTimerMessage) activeTimerMessage.style.display = 'none';
+                    if (timerControls) timerControls.style.display = 'block';
+                    break;
+                case 'running':
+                    if (activeTimerMessage) activeTimerMessage.style.display = 'block';
+                    if (timerControls) timerControls.style.display = 'none';
+                    break;
+            }
+        }
+
+        function onTaskCompleteByName(name) {
+            if (TimerState.isActive && TimerState.taskName === name) {
+                TimerState.complete();
+            }
+        }
+
+        function onTaskRestoreByName(name) {
+            if (TimerState.taskName === name) {
+                TimerState.stop();
+            }
+        }
 
         const monthLabelEl = document.getElementById('monthLabel');
         const dateStripEl = document.getElementById('dateStrip');
@@ -2635,7 +2704,7 @@ html {
                         ${tagsBlock}
                         <div class='task-header'>
                             <div class='task-main'>
-                                <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='toggleTask(${actualIndex})'/>
+                                <input type='checkbox' ${task.completed ? 'checked' : ''} onchange='handleTaskUncheck(this, this.closest(".task"), ${actualIndex})'/>
                                 <span class='task-text'>${task.task}</span>${infoIcon}
                             </div>
                             <div class='task-actions'>
@@ -2752,12 +2821,27 @@ html {
             }, 600);
         }
 
+        function handleTaskUncheck(checkbox, taskElement, index) {
+            if (checkbox.checked) return;
+
+            const taskName = taskElement.querySelector('.task-text').textContent;
+
+            if (TimerState.taskName === taskName) {
+                clearTimerStates();
+                updateFocusTimerDisplay();
+            }
+
+            toggleTask(index);
+        }
+
         function toggleTask(index) {
             tasks[index].completed = !tasks[index].completed;
             if (tasks[index].completed) {
                 tasks[index].completedAt = new Date().toISOString();
+                onTaskCompleteByName(tasks[index].task);
             } else {
                 delete tasks[index].completedAt;
+                onTaskRestoreByName(tasks[index].task);
             }
             localStorage.setItem('tasks', JSON.stringify(tasks));
             loadTasks();
@@ -2779,6 +2863,7 @@ html {
             if (taskTimerInterval) clearInterval(taskTimerInterval);
             taskTimerInterval = null;
             logCurrentSession();
+            TimerState.complete();
 
             setTimeout(() => {
                 if (floating) floating.style.display = 'none';
@@ -2794,17 +2879,41 @@ html {
         }
 
         function completeCurrentTask() {
-            const floating = document.getElementById('taskTimerDisplay');
-            if (!floating) return;
-            const taskName = document.getElementById('taskTimerTitle').textContent;
-            const taskElements = document.querySelectorAll('#taskList .task-item');
-            const match = Array.from(taskElements).find(t => t.querySelector('.task-text')?.textContent === taskName);
-            if (match) {
-                const cb = match.querySelector('input[type="checkbox"]');
-                cb.checked = true;
-                handleTaskCompletion(cb, match);
-            } else {
-                autoCompleteTimer();
+            const floatingTimer = document.getElementById('floatingTimer');
+            if (!floatingTimer) return;
+
+            const taskName = floatingTimer.querySelector('.task-name').textContent;
+
+            const taskElements = document.querySelectorAll('#todayTasks .task-item');
+            const matchingTask = Array.from(taskElements).find(task =>
+                task.querySelector('.task-text').textContent === taskName
+            );
+
+            if (matchingTask) {
+                const checkbox = matchingTask.querySelector('input[type="checkbox"]');
+                checkbox.checked = true;
+                handleTaskCompletion(checkbox, matchingTask);
+            }
+
+            clearTimerStates();
+            updateFocusTimerDisplay();
+        }
+
+        function clearTimerStates() {
+            TimerState.stop();
+        }
+
+        function updateFocusTimerDisplay() {
+            const timerSection = document.getElementById('timerSection');
+            const activeTimerMessage = timerSection?.querySelector('.active-timer-message');
+
+            if (activeTimerMessage) {
+                activeTimerMessage.style.display = 'none';
+            }
+
+            const timerControls = timerSection?.querySelector('.timer-controls');
+            if (timerControls) {
+                timerControls.style.display = 'block';
             }
         }
 
@@ -4110,6 +4219,7 @@ function openSubtaskModal(tIndex) {
 
         // Task Timer Functions
         function startTaskTimer(index) {
+            TimerState.stop();
             currentTaskIndex = index;
             document.getElementById('durationModal').classList.add('active');
         }
@@ -4147,6 +4257,7 @@ function openSubtaskModal(tIndex) {
             const task = tasks[currentTaskIndex];
             taskOriginalDuration = selectedDuration * 60;
             taskTimeRemaining = taskOriginalDuration;
+            TimerState.start(task.task, taskOriginalDuration);
             isTaskPaused = false;
             isTimerMinimized = false;
             pinnedTaskIndex = currentTaskIndex;
@@ -4179,11 +4290,13 @@ function openSubtaskModal(tIndex) {
             taskTimerInterval = setInterval(() => {
                 if (taskTimeRemaining > 0) {
                     taskTimeRemaining--;
+                    TimerState.timeRemaining--;
                     if (taskTimeRemaining % 30 === 0) {
                         console.log('Timer check:', taskTimeRemaining, 'of', taskOriginalDuration, 'halfway at:', taskOriginalDuration/2);
                     }
                     if (!halfwayPrompted && taskOriginalDuration >= 10 * 60 && taskTimeRemaining <= taskOriginalDuration / 2) {
                         halfwayPrompted = true;
+                        TimerState.halfwayPrompted = true;
                         openMoodPromptModal('midway');
                     }
                     updateTaskTimerDisplay();
@@ -4193,6 +4306,7 @@ function openSubtaskModal(tIndex) {
                     taskTimerComplete();
                 }
             }, 1000);
+            TimerState.interval = taskTimerInterval;
         }
 
         function updateTaskTimerDisplay() {
@@ -4206,6 +4320,7 @@ function openSubtaskModal(tIndex) {
         }
 
         function taskTimerComplete() {
+            TimerState.complete();
             // Show notification
             if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification('Timer Complete!', {
@@ -4249,6 +4364,7 @@ function openSubtaskModal(tIndex) {
             tasks[currentTaskIndex].completed = true;
             tasks[currentTaskIndex].completedAt = new Date().toISOString();
             localStorage.setItem('tasks', JSON.stringify(tasks));
+            TimerState.complete();
             closeCompletionModal();
             // Show mood prompt after user confirms task completion
             openMoodPromptModal('after');
@@ -4266,7 +4382,8 @@ function openSubtaskModal(tIndex) {
             closeCompletionModal();
         }
 
-        function closeCompletionModal() {
+       function closeCompletionModal() {
+            TimerState.stop();
             document.getElementById('completionModal').classList.remove('active');
             document.getElementById('taskTimerDisplay').style.display = 'none';
             document.getElementById('minimizedTaskTimer').style.display = 'none';
@@ -4346,11 +4463,12 @@ function openSubtaskModal(tIndex) {
            }
        }
 
-        function cancelTaskTimer() {
-            if (currentTaskIndex === null) return;
+       function cancelTaskTimer() {
+           if (currentTaskIndex === null) return;
+            TimerState.stop();
             logCurrentSession();
             closeCompletionModal();
-        }
+       }
 
         function addMoreTimeDuringRun() {
             openAddTimeModal();
