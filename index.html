@@ -2751,8 +2751,6 @@ function openSubtaskModal(tIndex) {
             totalTime = minutes * 60;
             timeRemaining = totalTime;
 
-            isRunning = true;
-            updateTimerDisplay();
 
             tasks.push({ task: taskName, completed: false, totalTime: 0, sessions: [] });
             localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -2760,7 +2758,7 @@ function openSubtaskModal(tIndex) {
 
             currentTaskIndex = tasks.length - 1;
             selectedDuration = minutes;
-            startTaskCountdown();
+            openMoodPromptModal('before', startTaskCountdown);
         });
 
         // Notes functionality
@@ -3285,7 +3283,7 @@ function openSubtaskModal(tIndex) {
         function selectDuration(minutes) {
             selectedDuration = minutes;
             closeDurationModal();
-            startTaskCountdown();
+            openMoodPromptModal('before', startTaskCountdown);
         }
 
         function selectCustomDuration() {
@@ -3294,7 +3292,7 @@ function openSubtaskModal(tIndex) {
             if (minutes && minutes > 0 && minutes <= 60) {
                 selectedDuration = minutes;
                 closeDurationModal();
-                startTaskCountdown();
+                openMoodPromptModal('before', startTaskCountdown);
             }
         }
 
@@ -3347,7 +3345,7 @@ function openSubtaskModal(tIndex) {
             taskTimerInterval = setInterval(() => {
                 if (taskTimeRemaining > 0) {
                     taskTimeRemaining--;
-                    if (!halfwayPrompted && taskTimeRemaining <= taskOriginalDuration / 2) {
+                    if (!halfwayPrompted && taskOriginalDuration >= 15 * 60 && taskTimeRemaining <= taskOriginalDuration / 2) {
                         halfwayPrompted = true;
                         openMoodPromptModal('midway');
                     }
@@ -3601,29 +3599,58 @@ function openSubtaskModal(tIndex) {
 
         let moodPromptType = null;
         let moodPromptSelected = null;
+        let moodPromptCallback = null;
 
-        function openMoodPromptModal(type) {
+        function openMoodPromptModal(type, cb) {
             moodPromptType = type;
+            moodPromptCallback = cb || null;
             moodPromptSelected = null;
-            document.getElementById('moodPromptTitle').textContent =
-                type === 'midway' ? 'Halfway there — how are you feeling?' : 'Session complete. How did that feel?';
-            document.getElementById('moodPromptReason').value = '';
-            document.getElementById('moodPromptReason').style.display = 'none';
-            document.getElementById('submitMoodPrompt').style.display = 'none';
+            const titleEl = document.getElementById('moodPromptTitle');
+            const reasonInput = document.getElementById('moodPromptReason');
+            const submitBtn = document.getElementById('submitMoodPrompt');
+            if (type === 'midway') {
+                titleEl.textContent = "How's it going so far?";
+                reasonInput.placeholder = 'What made it difficult?';
+                reasonInput.style.display = 'none';
+                submitBtn.style.display = 'none';
+            } else if (type === 'after') {
+                titleEl.textContent = 'Session complete. How did that feel?';
+                reasonInput.placeholder = 'What made it difficult?';
+                reasonInput.style.display = 'none';
+                submitBtn.style.display = 'none';
+            } else {
+                titleEl.textContent = 'How are you feeling as you begin this task?';
+                reasonInput.placeholder = 'Anything on your mind?';
+                reasonInput.value = '';
+                reasonInput.style.display = 'block';
+                submitBtn.style.display = 'inline-block';
+            }
+            reasonInput.value = '';
             document.querySelectorAll('#moodPromptModal .emoji').forEach(e => e.classList.remove('selected'));
             document.getElementById('moodPromptModal').classList.add('active');
         }
 
         function closeMoodPromptModal() {
             document.getElementById('moodPromptModal').classList.remove('active');
+            if (moodPromptType === 'before' && moodPromptCallback) {
+                const cb = moodPromptCallback;
+                moodPromptCallback = null;
+                cb();
+            }
             moodPromptType = null;
             moodPromptSelected = null;
+            moodPromptCallback = null;
         }
 
         function selectPromptMood(el) {
             document.querySelectorAll('#moodPromptModal .emoji').forEach(e => e.classList.remove('selected'));
             el.classList.add('selected');
             moodPromptSelected = el.dataset.mood;
+            if (moodPromptType === 'before') {
+                document.getElementById('moodPromptReason').focus();
+                document.getElementById('submitMoodPrompt').style.display = 'inline-block';
+                return;
+            }
             if (['😐','😩','😠'].includes(moodPromptSelected)) {
                 document.getElementById('moodPromptReason').style.display = 'block';
                 document.getElementById('submitMoodPrompt').style.display = 'inline-block';
@@ -3644,9 +3671,13 @@ function openSubtaskModal(tIndex) {
                 const task = tasks[currentTaskIndex];
                 if (task) {
                     taskName = task.task;
-                    minutesIntoTask = moodPromptType === 'after'
-                        ? Math.floor(taskOriginalDuration / 60)
-                        : Math.floor((selectedDuration * 60 - taskTimeRemaining) / 60);
+                    if (moodPromptType === 'after') {
+                        minutesIntoTask = Math.floor(taskOriginalDuration / 60);
+                    } else if (moodPromptType === 'before') {
+                        minutesIntoTask = 0;
+                    } else {
+                        minutesIntoTask = Math.floor((selectedDuration * 60 - taskTimeRemaining) / 60);
+                    }
                 }
             }
 
