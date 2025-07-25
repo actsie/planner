@@ -450,6 +450,11 @@
         .mood-trends {
             margin-top: 1rem;
             font-size: 0.85rem;
+            text-align: left;
+        }
+
+        .mood-trends div {
+            margin-bottom: 0.5rem;
         }
 
         .trend-bar {
@@ -2681,6 +2686,7 @@ function openSubtaskModal(tIndex) {
             trendContainer.prepend(summary);
 
             const insight1 = document.createElement('div');
+            insight1.style.marginTop = '0.5rem';
             insight1.textContent = 'This week: 😄 after creative tasks, 😩 after admin';
             trendContainer.appendChild(insight1);
 
