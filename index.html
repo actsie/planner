@@ -1417,11 +1417,11 @@
                         <div class="mood-label">good</div>
                     </div>
                     <div>
-                        <div class="emoji" data-mood="😩">😩</div>
+                        <div class="emoji" data-mood="😮‍💨">😮‍💨</div>
                         <div class="mood-label">tired</div>
                     </div>
                     <div>
-                        <div class="emoji" data-mood="😠">😠</div>
+                        <div class="emoji" data-mood="😫">😫</div>
                         <div class="mood-label">stressed</div>
                     </div>
                 </div>
@@ -1658,11 +1658,11 @@
                     <div class="mood-label">good</div>
                 </div>
                 <div>
-                    <div class="emoji" data-mood="😩">😩</div>
+                    <div class="emoji" data-mood="😮‍💨">😮‍💨</div>
                     <div class="mood-label">tired</div>
                 </div>
                 <div>
-                    <div class="emoji" data-mood="😠">😠</div>
+                    <div class="emoji" data-mood="😫">😫</div>
                     <div class="mood-label">stressed</div>
                 </div>
             </div>
@@ -1942,7 +1942,7 @@
                                             reasonDiv.textContent = `"${m.reason}"`;
                                             li.appendChild(reasonDiv);
                                         }
-                                        if (['😐','😩','😠'].includes(m.mood)) {
+                                        if (['😐','😮‍💨','😫'].includes(m.mood)) {
                                             const edit = document.createElement('span');
                                             edit.textContent = '🖊️';
                                             edit.classList.add('edit-icon');
@@ -2019,7 +2019,7 @@
                                     reasonDiv.textContent = `"${m.reason}"`;
                                     li.appendChild(reasonDiv);
                                 }
-                                if (['😐','😩','😠'].includes(m.mood)) {
+                                if (['😐','😮‍💨','😫'].includes(m.mood)) {
                                     const edit = document.createElement('span');
                                     edit.textContent = '🖊️';
                                     edit.classList.add('edit-icon');
@@ -2530,12 +2530,12 @@ function openSubtaskModal(tIndex) {
                     pendingMoodType = null;
                 };
 
-                if (['😩','😠'].includes(this.dataset.mood) && taskTimerInterval) {
+                if (['😮‍💨','😫'].includes(this.dataset.mood) && taskTimerInterval) {
                     pauseTaskTimer();
                     autoPausedByMood = true;
                 }
 
-                if (['😐','😩','😠'].includes(this.dataset.mood)) {
+                if (['😐','😮‍💨','😫'].includes(this.dataset.mood)) {
                     openMoodReasonModal('', finalize, this.dataset.mood);
                 } else {
                     finalize(null);
@@ -2655,10 +2655,10 @@ function openSubtaskModal(tIndex) {
             document.getElementById('breakError').style.display = 'none';
             const header = document.getElementById('moodReasonHeader');
             const suggestion = document.getElementById('breakSuggestion');
-            if (mood === '😩') {
+            if (mood === '😮‍💨') {
                 header.textContent = "Feeling tired? Let's understand what's draining you.";
                 suggestion.style.display = 'block';
-            } else if (mood === '😠') {
+            } else if (mood === '😫') {
                 header.textContent = "Feeling overwhelmed? Let's identify what's causing stress.";
                 suggestion.style.display = 'block';
             } else {
@@ -3651,7 +3651,7 @@ function openSubtaskModal(tIndex) {
                 document.getElementById('submitMoodPrompt').style.display = 'inline-block';
                 return;
             }
-            if (['😐','😩','😠'].includes(moodPromptSelected)) {
+            if (['😐','😮‍💨','😫'].includes(moodPromptSelected)) {
                 document.getElementById('moodPromptReason').style.display = 'block';
                 document.getElementById('submitMoodPrompt').style.display = 'inline-block';
                 document.getElementById('moodPromptReason').focus();
