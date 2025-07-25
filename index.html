@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Calm - Your Gentle Digital Planner</title>
     <style>
+        :root {
+            --warm-green: #7c9885;
+            --soft-brown: #faf8f3;
+        }
         * {
             margin: 0;
             padding: 0;
@@ -498,6 +502,43 @@
             color: #718096;
             cursor: pointer;
             font-size: 0.75rem;
+        }
+
+        .trend-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .trend-tooltip {
+            position: absolute;
+            left: 0;
+            top: calc(100% + 8px);
+            background: var(--soft-brown);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            padding: 0.75rem;
+            max-width: 300px;
+            opacity: 0;
+            transform: scale(0.95) translateY(10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .trend-tooltip.show {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+        }
+
+        .trend-tooltip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 20px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent transparent var(--soft-brown) transparent;
         }
 
         /* Timer Styles */
@@ -1447,8 +1488,12 @@
                 <div class="mood-history" id="moodHistory"></div>
                 <div class="mood-timeline" id="moodTimeline"></div>
                 <button id="toggleMoodLog" class="link-button" style="display:none;">View all</button>
-                <div id="moodTrends" class="mood-trends" style="display:none;"></div>
-                <button id="toggleTrendView" class="link-button">View Trends</button>
+                <div class="trend-wrapper">
+                    <span id="toggleTrendView" class="link-button">View Trends</span>
+                    <div id="trendTooltip" class="trend-tooltip">
+                        <div id="moodTrends" class="mood-trends"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="card full-width">
@@ -2570,20 +2615,30 @@ function openSubtaskModal(tIndex) {
         });
 
         const trendContainer = document.getElementById('moodTrends');
+        const trendTooltip = document.getElementById('trendTooltip');
         const trendBtn = document.getElementById('toggleTrendView');
-        let trendVisible = false;
+        let hideTrendTimeout = null;
 
-        trendBtn.addEventListener('click', () => {
-            trendVisible = !trendVisible;
-            if (trendVisible) {
-                loadMoodTrends();
-                trendContainer.style.display = 'block';
-                trendBtn.textContent = 'Hide Trends';
-            } else {
-                trendContainer.style.display = 'none';
-                trendBtn.textContent = 'View Trends';
-            }
-        });
+        function showTrendTooltip() {
+            clearTimeout(hideTrendTimeout);
+            loadMoodTrends();
+            trendTooltip.style.display = 'block';
+            requestAnimationFrame(() => trendTooltip.classList.add('show'));
+        }
+
+        function scheduleHideTrendTooltip() {
+            hideTrendTimeout = setTimeout(() => {
+                trendTooltip.classList.remove('show');
+                setTimeout(() => {
+                    trendTooltip.style.display = 'none';
+                }, 200);
+            }, 400);
+        }
+
+        trendBtn.addEventListener('mouseenter', showTrendTooltip);
+        trendBtn.addEventListener('mouseleave', scheduleHideTrendTooltip);
+        trendTooltip.addEventListener('mouseenter', showTrendTooltip);
+        trendTooltip.addEventListener('mouseleave', scheduleHideTrendTooltip);
 
         function loadMoodTrends() {
             const dailyLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
@@ -2621,6 +2676,14 @@ function openSubtaskModal(tIndex) {
             const positivity = Math.round((positive / total) * 100);
             summary.textContent = `Positive moods ${positivity}% last 7 days`;
             trendContainer.prepend(summary);
+
+            const insight1 = document.createElement('div');
+            insight1.textContent = 'This week: 😄 after creative tasks, 😩 after admin';
+            trendContainer.appendChild(insight1);
+
+            const insight2 = document.createElement('div');
+            insight2.textContent = 'Best focus time: 9-11am ✨';
+            trendContainer.appendChild(insight2);
         }
 
         // Timer functionality
