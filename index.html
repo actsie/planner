@@ -521,22 +521,59 @@
             margin-top: 0.75rem;
         }
 
-        .trend-buttons {
+        .trend-links-container {
             display: flex;
             justify-content: center;
-            gap: 1rem;
-            position: relative;
-            width: 100%;
+            gap: 20px;
+            margin-top: 12px;
         }
 
-        .trend-tag {
-            background: #e8dfd6;
+        .trend-link {
+            /* Reset */
+            text-decoration: none;
+            line-height: 1;
+            background: none;
+            border: none;
+
+            /* Positioning */
+            position: relative;
+            z-index: 0;
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
+            padding: 8px 12px;
+            overflow: hidden;
+
+            /* Daily Calm theme colors */
+            color: #7c9885;
+            font-size: 14px;
+            font-weight: 500;
+            vertical-align: bottom;
+            transition: color .3s ease-out;
             cursor: pointer;
-            color: #4a5568;
+        }
+
+        .trend-link::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            top: 0;
+            left: 0;
+            transform: translateY(calc(100% - 2px));
+            width: 100%;
+            height: 100%;
+
+            /* Daily Calm gradient */
+            background: linear-gradient(45deg, #7c9885 0%, #c9b3a3 100%);
+            border-radius: 4px;
+            transition: transform .25s ease-out;
+        }
+
+        .trend-link:hover {
+            color: #faf8f3;
+        }
+
+        .trend-link:hover::before {
+            transform: translateY(0);
+            transition: transform .25s ease-out;
         }
 
         .trend-tooltip {
@@ -1546,15 +1583,15 @@ html {
                 <div class="mood-timeline" id="moodTimeline"></div>
                 <div class="mood-actions">
                     <button id="toggleMoodLog" class="link-button" style="display:none;">View all</button>
-                    <div class="trend-buttons">
+                    <div class="trend-links-container">
                         <div class="trend-wrapper">
-                            <span id="toggleTrendView" class="trend-tag">View Trends</span>
+                            <span id="toggleTrendView" class="trend-link">View Trends</span>
                             <div id="trendTooltip" class="trend-tooltip">
                                 <div id="moodTrends" class="mood-trends"></div>
                             </div>
                         </div>
                         <div class="trend-wrapper">
-                            <span id="toggleEnergyView" class="trend-tag">Energy Insights</span>
+                            <span id="toggleEnergyView" class="trend-link">Energy Insights</span>
                             <div id="energyTooltip" class="trend-tooltip">
                                 <div id="energyInsights" class="mood-trends"></div>
                             </div>
