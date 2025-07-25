@@ -1042,38 +1042,89 @@
         }
 
         .add-to-today-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
+            position: relative;
+            display: inline-block;
             cursor: pointer;
             outline: none;
-            border: none;
+            border: 0;
+            vertical-align: middle;
+            text-decoration: none;
             background: transparent;
-            font-family: inherit;
             padding: 0;
-            font-size: 13px;
-            font-weight: 600;
-            color: #7c9885;
+            font-size: inherit;
+            font-family: inherit;
+            width: 12rem;
+            height: auto;
         }
 
         .add-to-today-btn .circle {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 1.5rem;
-            height: 1.5rem;
+            transition: all 0.45s cubic-bezier(0.65,0,.076,1);
+            position: relative;
+            display: block;
+            margin: 0 0 0 auto;
+            width: 3rem;
+            height: 3rem;
             background: #7c9885;
-            color: #faf8f3;
-            border-radius: 50%;
-            transition: background 0.2s ease;
+            border-radius: 1.625rem;
+        }
+
+        .add-to-today-btn .circle .icon {
+            transition: all 0.45s cubic-bezier(0.65,0,.076,1);
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            margin: auto;
+            background: #faf8f3;
+        }
+
+        .add-to-today-btn .circle .icon.arrow {
+            transition: all 0.45s cubic-bezier(0.65,0,.076,1);
+            right: 0.625rem;
+            width: 1.125rem;
+            height: 0.125rem;
+            background: none;
+        }
+
+        .add-to-today-btn .circle .icon.arrow::before {
+            position: absolute;
+            content: '';
+            top: -0.25rem;
+            left: 0.0625rem;
+            width: 0.625rem;
+            height: 0.625rem;
+            border-top: 0.125rem solid #faf8f3;
+            border-left: 0.125rem solid #faf8f3;
+            transform: rotate(-45deg);
         }
 
         .add-to-today-btn .button-text {
-            margin: 0;
+            transition: all 0.45s cubic-bezier(0.65,0,.076,1);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 0.75rem 0;
+            margin: 0 1.85rem 0 0;
+            color: #7c9885;
+            font-weight: 600;
+            line-height: 1.6;
+            text-align: center;
+            font-size: 14px;
         }
 
         .add-to-today-btn:hover .circle {
-            background: #5f7668;
+            width: 100%;
+            margin: 0;
+        }
+
+        .add-to-today-btn:hover .circle .icon.arrow {
+            background: #faf8f3;
+            transform: translate(-1rem, 0);
+        }
+
+        .add-to-today-btn:hover .button-text {
+            color: #faf8f3;
         }
 
         .modal-close {
@@ -1595,7 +1646,9 @@ html {
                     <input type="text" id="templateFilter" placeholder="Filter templates" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;border:1px solid #e8dfd6;border-radius:8px;">
                     <ul id="templateList"></ul>
                     <button id="addToTodayBtn" class="add-to-today-btn" style="display:none;margin-top:0.5rem;">
-                        <span class="circle">&lt;</span>
+                        <span class="circle" aria-hidden="true">
+                            <span class="icon arrow"></span>
+                        </span>
                         <span class="button-text">Add to Today</span>
                     </button>
                     <div id="templateToast" class="template-toast floating-msg" style="display:none;margin-top:0.5rem;"></div>
