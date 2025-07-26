@@ -727,14 +727,7 @@
 
             if (autoCompleteTimeout) clearTimeout(autoCompleteTimeout);
             autoCompleteTimeout = setTimeout(() => {
-                if (floating) floating.style.display = 'none';
-                if (collapsed) collapsed.style.display = 'none';
-                currentTaskIndex = null;
-                pinnedTaskIndex = null;
-                isTimerMinimized = false;
-                isTaskPaused = false;
-                isRunning = false;
-                loadTasks();
+                hideFloatingTimer();
                 openMoodPromptModal('after');
                 autoCompleteTimeout = null;
             }, 800);
@@ -2424,20 +2417,8 @@ function openSubtaskModal(tIndex) {
         }
 
        function closeCompletionModal() {
-            TimerState.stop();
-            document.getElementById('completionModal').classList.remove('active');
-            document.getElementById('taskTimerDisplay').style.display = 'none';
-            document.getElementById('minimizedTaskTimer').style.display = 'none';
-            document.getElementById('floatingMsg').style.display = 'none';
-            clearInterval(taskTimerInterval);
-            taskTimerInterval = null;
-            currentTaskIndex = null;
-            pinnedTaskIndex = null;
-            isTimerMinimized = false;
-            isRunning = false;
-            updateTimerDisplay();
-            loadTasks();
-            updateFocusTimerVisibility();
+            hideFloatingTimer();
+            document.getElementById("completionModal").classList.remove("active");
         }
 
         function minimizeTaskTimer() {
@@ -2479,6 +2460,25 @@ function openSubtaskModal(tIndex) {
             }
         }
 
+function hideFloatingTimer() {
+    TimerState.stop();
+    if (taskTimerInterval) {
+        clearInterval(taskTimerInterval);
+        taskTimerInterval = null;
+    }
+    document.getElementById('taskTimerDisplay').style.display = 'none';
+    document.getElementById('minimizedTaskTimer').style.display = 'none';
+    const msgEl = document.getElementById('floatingMsg');
+    if (msgEl) msgEl.style.display = 'none';
+    currentTaskIndex = null;
+    pinnedTaskIndex = null;
+    isTaskPaused = false;
+    isTimerMinimized = false;
+    isRunning = false;
+    updateFloatingMsg();
+    updateTimerDisplay();
+    setTimeout(loadTasks, 50);
+}
        function pauseTaskTimer() {
            if (taskTimerInterval) {
                clearInterval(taskTimerInterval);
@@ -2506,9 +2506,8 @@ function openSubtaskModal(tIndex) {
 
        function cancelTaskTimer() {
            if (currentTaskIndex === null) return;
-            TimerState.stop();
             logCurrentSession();
-            closeCompletionModal();
+            hideFloatingTimer();
        }
 
         function addMoreTimeDuringRun() {
