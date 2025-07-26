@@ -1,3 +1,33 @@
+        // DOM Element Cache - for performance optimization
+        const DOM = {
+            quoteDisplay: null,
+            taskList: null,
+            taskInput: null,
+            addTaskButton: null,
+            timerDisplay: null,
+            timerProgressBar: null,
+            taskTimerDisplay: null,
+            moodHistory: null,
+            moodTimeline: null,
+            templateList: null,
+            doneTaskList: null,
+            
+            // Initialize cached elements
+            init() {
+                this.quoteDisplay = document.getElementById('quoteDisplay');
+                this.taskList = document.getElementById('taskList');
+                this.taskInput = document.getElementById('taskInput');
+                this.addTaskButton = document.getElementById('addTask');
+                this.timerDisplay = document.getElementById('timerDisplay');
+                this.timerProgressBar = document.getElementById('timerProgressBar');
+                this.taskTimerDisplay = document.getElementById('taskTimerDisplay');
+                this.moodHistory = document.getElementById('moodHistory');
+                this.moodTimeline = document.getElementById('moodTimeline');
+                this.templateList = document.getElementById('templateList');
+                this.doneTaskList = document.getElementById('doneTaskList');
+            }
+        };
+
         // Encouraging quotes
         const quotes = [
             "You don't have to finish, just begin.",
@@ -16,7 +46,7 @@
 
         // Load and display random quote
         function loadQuote() {
-            const quoteDisplay = document.getElementById('quoteDisplay');
+            const quoteDisplay = DOM.quoteDisplay || document.getElementById('quoteDisplay');
             const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
             quoteDisplay.textContent = randomQuote;
         }
@@ -25,9 +55,9 @@
         let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
         let pendingBreakTaskIndex = null;
         let pendingSubtaskIndex = null;
-        const taskList = document.getElementById('taskList');
-        const taskInput = document.getElementById('taskInput');
-        const addTaskButton = document.getElementById('addTask');
+        const taskList = DOM.taskList || document.getElementById('taskList');
+        const taskInput = DOM.taskInput || document.getElementById('taskInput');
+        const addTaskButton = DOM.addTaskButton || document.getElementById('addTask');
 
         // Task Timer variables
         let currentTaskIndex = null;
@@ -641,14 +671,15 @@
             }
         }
 
-        function handleTaskCompletion(checkbox, taskElement) {
+        function handleTaskCompletion(checkbox, taskElement, preventAutoComplete = false) {
             if (!checkbox.checked) return;
 
             const activeTaskName = taskElement.querySelector('.task-text')?.textContent;
             const floatingTimer = document.getElementById('taskTimerDisplay');
             const timerTaskName = floatingTimer?.querySelector('#taskTimerTitle')?.textContent;
 
-            if (floatingTimer && timerTaskName === activeTaskName) {
+            // Only auto-complete the timer if not prevented (i.e., when user manually checks task)
+            if (!preventAutoComplete && floatingTimer && timerTaskName === activeTaskName) {
                 autoCompleteTimer();
             }
 
@@ -727,7 +758,14 @@
 
             if (autoCompleteTimeout) clearTimeout(autoCompleteTimeout);
             autoCompleteTimeout = setTimeout(() => {
-                hideFloatingTimer();
+                if (floating) floating.style.display = 'none';
+                if (collapsed) collapsed.style.display = 'none';
+                currentTaskIndex = null;
+                pinnedTaskIndex = null;
+                isTimerMinimized = false;
+                isTaskPaused = false;
+                isRunning = false;
+                loadTasks();
                 openMoodPromptModal('after');
                 autoCompleteTimeout = null;
             }, 800);
@@ -745,23 +783,63 @@
             }
             if (!taskName) return;
 
-            const taskElements = document.querySelectorAll('#todayTasks .task-item');
-            const matchingTask = Array.from(taskElements).find(task =>
-                task.querySelector('.task-text').textContent === taskName
-            );
+            // Look for task in the correct container (#taskList, not #todayTasks)
+            const taskElements = document.querySelectorAll('#taskList .task');
+            const matchingTask = Array.from(taskElements).find(task => {
+                const taskText = task.querySelector('.task-text');
+                return taskText && taskText.textContent.trim() === taskName.trim();
+            });
 
             if (matchingTask) {
                 const checkbox = matchingTask.querySelector('input[type="checkbox"]');
-                checkbox.checked = true;
-                handleTaskCompletion(checkbox, matchingTask);
+                if (checkbox && !checkbox.checked) {
+                    checkbox.checked = true;
+                    // Trigger the completion handler but prevent auto-timer closure
+                    const tempPreventAutoComplete = true;
+                    handleTaskCompletion(checkbox, matchingTask, tempPreventAutoComplete);
+                }
             }
 
+            // Clean up timer state FIRST
             clearTimerStates();
-            updateFocusTimerDisplay();
+            hideFloatingTimer();
+            
+            // Wait a moment for state to fully clear, then reload tasks
+            setTimeout(() => {
+                loadTasks();
+            }, 100);
         }
 
         function clearTimerStates() {
             TimerState.stop();
+        }
+
+        function hideFloatingTimer() {
+            const floating = document.getElementById('taskTimerDisplay');
+            const collapsed = document.getElementById('minimizedTaskTimer');
+            
+            if (floating) floating.style.display = 'none';
+            if (collapsed) collapsed.style.display = 'none';
+            
+            // Clear any running timer intervals
+            if (taskTimerInterval) {
+                clearInterval(taskTimerInterval);
+                taskTimerInterval = null;
+            }
+            
+            // Reset ALL timer state variables
+            currentTaskIndex = null;
+            taskTimeRemaining = 0;
+            isTaskPaused = false;
+            isTimerMinimized = false;
+            pinnedTaskIndex = null;  // Explicitly reset this too
+            
+            // Update UI to reflect timer is no longer running
+            updateFloatingMsg();
+            
+            // Hide the "Active timer running elsewhere" message
+            const floatingMsg = document.getElementById('floatingMsg');
+            if (floatingMsg) floatingMsg.style.display = 'none';
         }
 
         function updateFocusTimerDisplay() {
@@ -905,9 +983,8 @@ function openSubtaskModal(tIndex) {
         const moodEmojis = document.querySelectorAll('#mainMoodContainer .emoji');
         const moodHistory = document.getElementById('moodHistory');
         const moodTimeline = document.getElementById('moodTimeline');
-        const toggleMoodLogBtn = document.getElementById('toggleMoodLog');
-        const moodGaugeNeedle = document.getElementById('moodGaugeNeedle');
         const moodGaugeLabel = document.getElementById('moodGaugeLabel');
+        const batteryBars = document.querySelectorAll('.battery-bar');
         const pastMoodsContent = document.getElementById('pastMoodsContent');
         const openPastMoodsBtn = document.getElementById('openPastMoodsBtn');
         let showAllMoodLog = false;
@@ -942,19 +1019,12 @@ function openSubtaskModal(tIndex) {
 
             if (moodLog.length === 0 && breakLog.length === 0) {
                 moodHistory.textContent = 'No mood logged yet';
-                toggleMoodLogBtn.style.display = 'none';
                 return;
             }
 
             const latestMood = moodLog[moodLog.length - 1];
-            if (latestMood) {
-                const lastTime = formatTime(latestMood.date);
-                const lastElapsed = (latestMood.minutesIntoTask !== null && latestMood.minutesIntoTask !== undefined) ? latestMood.minutesIntoTask : latestMood.elapsed;
-                const taskInfoLast = latestMood.task ? `During "${latestMood.task}" (${lastElapsed} min in)` : 'No task active';
-                moodHistory.textContent = `Latest mood: ${latestMood.mood} – ${lastTime} – ${taskInfoLast}`;
-            } else {
-                moodHistory.textContent = '';
-            }
+            // Hide the redundant "Latest mood" display - mood timeline shows the history
+            moodHistory.textContent = '';
 
             const entries = moodLog.map(e => ({...e, type:'mood'})).concat(
                 breakLog.map(b => ({...b, type:'break'}))
@@ -983,24 +1053,63 @@ function openSubtaskModal(tIndex) {
                 moodTimeline.appendChild(div);
             });
 
-            toggleMoodLogBtn.style.display = entries.length > 7 ? 'inline' : 'none';
-            toggleMoodLogBtn.textContent = showAllMoodLog ? 'Hide' : 'View all';
+            // Show/hide past moods based on count - now handled by openPastMoodsBtn modal
         }
 
         function updateMoodGauge() {
             const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
             const todayStr = new Date().toISOString().split('T')[0];
-            const mapping = { '😩':1, '😫':1, '😐':2, '😮‍💨':2, '🙂':3, '😄':4 };
+            const mapping = { '😫':-5, '😮‍💨':-4, '😐':0, '🙂':4, '😄':5 };
+            const moodClasses = { 1:'mood-stressed', 2:'mood-tired', 3:'mood-meh', 4:'mood-okay', 5:'mood-good' };
+            const moodLabels = { 1:'Stressed', 2:'Tired', 3:'Neutral', 4:'Good', 5:'Great' };
+            const contextMessages = { 
+                1:'Be extra gentle with yourself today',
+                2:'Maybe take it easy today', 
+                3:'Small steps count today',
+                4:'You\'re doing well today',
+                5:'Great energy today!'
+            };
+            
             const todays = moodLog.filter(m => m.date.startsWith(todayStr));
+            
+            // Clear all bars first
+            batteryBars.forEach(bar => {
+                bar.className = 'battery-bar';
+            });
+            
+            const todayEnergyLabel = document.getElementById('todayEnergyLabel');
+            const moodContextMessage = document.getElementById('moodContextMessage');
+            
             if (!todays.length) {
-                moodGaugeNeedle.style.left = '0%';
-                moodGaugeLabel.textContent = 'Avg: -';
+                todayEnergyLabel.textContent = 'Today\'s energy';
+                moodContextMessage.textContent = 'Select your mood to see your energy';
                 return;
             }
-            const avg = todays.reduce((s,m) => s + (mapping[m.mood]||2), 0) / todays.length;
-            const percent = ((avg - 1) / 3) * 100;
-            moodGaugeNeedle.style.left = `${percent}%`;
-            moodGaugeLabel.textContent = `Avg: ${avg.toFixed(1)}`;
+            
+            // Calculate weighted average mood level with exponential impact for stress
+            const avg = todays.reduce((s,m) => s + (mapping[m.mood] || 3), 0) / todays.length;
+            
+            // Debug logging
+            console.log('Today\'s moods:', todays.map(m => m.mood));
+            console.log('Weighted average:', avg);
+            
+            // Map symmetrical average (-5 to +5) back to 1-5 scale for display
+            let level;
+            if (avg < 0) level = 1;         // Any negative → Stressed (stress is draining you)
+            else if (avg <= 1.5) level = 2; // 0-1.5 → Tired (low positive energy)
+            else if (avg <= 3) level = 3;   // 1.5-3 → Neutral (mild positive)
+            else if (avg <= 4.5) level = 4; // 3-4.5 → Good (strong positive)
+            else level = 5;                 // 4.5+ → Great (very high energy)
+            
+            console.log('Final level:', level);
+            
+            // Fill bars up to the level with appropriate color
+            for (let i = 0; i < level && i < batteryBars.length; i++) {
+                batteryBars[i].classList.add(moodClasses[level]);
+            }
+            
+            todayEnergyLabel.textContent = `Today's energy: ${moodLabels[level]}`;
+            moodContextMessage.textContent = contextMessages[level];
         }
 
         moodEmojis.forEach(emoji => {
@@ -1057,12 +1166,9 @@ function openSubtaskModal(tIndex) {
             });
         });
 
-        toggleMoodLogBtn.addEventListener('click', () => {
-            showAllMoodLog = !showAllMoodLog;
-            updateMoodHistory();
-        });
 
         openPastMoodsBtn.addEventListener('click', openPastMoodsModal);
+        document.getElementById('moodHelpBtn').addEventListener('click', openMoodHelpModal);
 
         const trendContainer = document.getElementById('moodTrends');
         const trendTooltip = document.getElementById('trendTooltip');
@@ -1164,10 +1270,7 @@ function openSubtaskModal(tIndex) {
             }, 400);
         }
 
-        trendBtn.addEventListener('mouseenter', showTrendTooltip);
-        trendBtn.addEventListener('mouseleave', scheduleHideTrendTooltip);
-        trendTooltip.addEventListener('mouseenter', showTrendTooltip);
-        trendTooltip.addEventListener('mouseleave', scheduleHideTrendTooltip);
+        trendBtn.addEventListener('click', openTrendsModal);
 
         function loadMoodTrends() {
             const cw = getCurrentWeek();
@@ -1353,10 +1456,7 @@ function openSubtaskModal(tIndex) {
             }, 400);
         }
 
-        energyBtn.addEventListener('mouseenter', showEnergyTooltip);
-        energyBtn.addEventListener('mouseleave', scheduleHideEnergyTooltip);
-        energyTooltip.addEventListener('mouseenter', showEnergyTooltip);
-        energyTooltip.addEventListener('mouseleave', scheduleHideEnergyTooltip);
+        energyBtn.addEventListener('click', openEnergyModal);
 
         const reportContainer = document.getElementById('dailyReportContent');
         const reportTooltip = document.getElementById('dailyReportTooltip');
@@ -2417,8 +2517,20 @@ function openSubtaskModal(tIndex) {
         }
 
        function closeCompletionModal() {
-            hideFloatingTimer();
-            document.getElementById("completionModal").classList.remove("active");
+            TimerState.stop();
+            document.getElementById('completionModal').classList.remove('active');
+            document.getElementById('taskTimerDisplay').style.display = 'none';
+            document.getElementById('minimizedTaskTimer').style.display = 'none';
+            document.getElementById('floatingMsg').style.display = 'none';
+            clearInterval(taskTimerInterval);
+            taskTimerInterval = null;
+            currentTaskIndex = null;
+            pinnedTaskIndex = null;
+            isTimerMinimized = false;
+            isRunning = false;
+            updateTimerDisplay();
+            loadTasks();
+            updateFocusTimerVisibility();
         }
 
         function minimizeTaskTimer() {
@@ -2460,25 +2572,6 @@ function openSubtaskModal(tIndex) {
             }
         }
 
-function hideFloatingTimer() {
-    TimerState.stop();
-    if (taskTimerInterval) {
-        clearInterval(taskTimerInterval);
-        taskTimerInterval = null;
-    }
-    document.getElementById('taskTimerDisplay').style.display = 'none';
-    document.getElementById('minimizedTaskTimer').style.display = 'none';
-    const msgEl = document.getElementById('floatingMsg');
-    if (msgEl) msgEl.style.display = 'none';
-    currentTaskIndex = null;
-    pinnedTaskIndex = null;
-    isTaskPaused = false;
-    isTimerMinimized = false;
-    isRunning = false;
-    updateFloatingMsg();
-    updateTimerDisplay();
-    setTimeout(loadTasks, 50);
-}
        function pauseTaskTimer() {
            if (taskTimerInterval) {
                clearInterval(taskTimerInterval);
@@ -2506,8 +2599,11 @@ function hideFloatingTimer() {
 
        function cancelTaskTimer() {
            if (currentTaskIndex === null) return;
+            TimerState.stop();
             logCurrentSession();
+            closeCompletionModal();
             hideFloatingTimer();
+            loadTasks(); // Reload to show timer buttons again
        }
 
         function addMoreTimeDuringRun() {
@@ -2724,6 +2820,271 @@ function hideFloatingTimer() {
             document.getElementById('pastMoodsModal').classList.remove('active');
         }
 
+        function openMoodHelpModal() {
+            document.getElementById('moodHelpModal').classList.add('active');
+        }
+
+        function closeMoodHelpModal() {
+            document.getElementById('moodHelpModal').classList.remove('active');
+        }
+
+        function openTrendsModal() {
+            populateTrendsModal();
+            document.getElementById('trendsModal').classList.add('active');
+        }
+
+        function closeTrendsModal() {
+            document.getElementById('trendsModal').classList.remove('active');
+        }
+
+        function openEnergyModal() {
+            populateEnergyModal();
+            document.getElementById('energyModal').classList.add('active');
+        }
+
+        function closeEnergyModal() {
+            document.getElementById('energyModal').classList.remove('active');
+        }
+
+        function populateTrendsModal() {
+            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            const mapping = { '😫':-5, '😮‍💨':-4, '😐':0, '🙂':4, '😄':5 };
+            const moodClasses = { 1:'mood-stressed', 2:'mood-tired', 3:'mood-meh', 4:'mood-okay', 5:'mood-good' };
+            const moodLabels = { 1:'Stressed', 2:'Tired', 3:'Neutral', 4:'Good', 5:'Great' };
+            
+            const weeklyTrends = document.getElementById('weeklyTrends');
+            const trendsInsight = document.getElementById('trendsInsight');
+            
+            // Get last 7 days
+            const days = [];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                days.push(date);
+            }
+            
+            weeklyTrends.innerHTML = '';
+            let weekData = [];
+            
+            days.forEach(date => {
+                const dateStr = date.toISOString().split('T')[0];
+                const dayMoods = moodLog.filter(m => m.date.startsWith(dateStr));
+                
+                let level = 0;
+                let levelLabel = 'No data';
+                let percentage = 0;
+                let moodClass = 'mood-meh';
+                
+                if (dayMoods.length > 0) {
+                    const avg = dayMoods.reduce((s,m) => s + (mapping[m.mood] || 0), 0) / dayMoods.length;
+                    
+                    if (avg < 0) level = 1;
+                    else if (avg <= 1.5) level = 2;
+                    else if (avg <= 3) level = 3;
+                    else if (avg <= 4.5) level = 4;
+                    else level = 5;
+                    
+                    levelLabel = moodLabels[level];
+                    percentage = (level / 5) * 100;
+                    moodClass = moodClasses[level];
+                }
+                
+                weekData.push({ date, level, levelLabel, dayMoods: dayMoods.length });
+                
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'trend-day';
+                
+                const dayName = date.toLocaleDateString(undefined, { weekday: 'short' });
+                dayDiv.innerHTML = `
+                    <div class="trend-day-name">${dayName}</div>
+                    <div class="trend-battery">
+                        <div class="trend-battery-fill ${moodClass}" style="width: ${percentage}%"></div>
+                    </div>
+                    <div class="trend-day-label">${levelLabel}</div>
+                `;
+                
+                weeklyTrends.appendChild(dayDiv);
+            });
+            
+            // Generate insight
+            const insightText = generateTrendInsight(weekData);
+            trendsInsight.querySelector('.insight-text').textContent = insightText;
+        }
+        
+        function generateTrendInsight(weekData) {
+            const validDays = weekData.filter(d => d.dayMoods > 0);
+            if (validDays.length === 0) return "Start logging your moods to see patterns emerge!";
+            
+            const avgLevel = validDays.reduce((s, d) => s + d.level, 0) / validDays.length;
+            const trend = validDays.length >= 3 ? getTrend(validDays) : null;
+            
+            if (trend === 'improving') {
+                return "Your energy has been trending upward this week. Keep nurturing what's working!";
+            } else if (trend === 'declining') {
+                return "This week has been challenging. Remember that tough periods are temporary - be gentle with yourself.";
+            } else if (avgLevel >= 4) {
+                return "You've had great energy this week! Your positive moments are shining through.";
+            } else if (avgLevel <= 2) {
+                return "This week has required extra resilience from you. Small steps and self-compassion count.";
+            } else {
+                return "Your energy levels show the natural ups and downs of being human. You're managing well.";
+            }
+        }
+        
+        function getTrend(days) {
+            if (days.length < 3) return null;
+            const firstHalf = days.slice(0, Math.floor(days.length / 2));
+            const secondHalf = days.slice(Math.ceil(days.length / 2));
+            const firstAvg = firstHalf.reduce((s, d) => s + d.level, 0) / firstHalf.length;
+            const secondAvg = secondHalf.reduce((s, d) => s + d.level, 0) / secondHalf.length;
+            const diff = secondAvg - firstAvg;
+            if (diff > 0.5) return 'improving';
+            if (diff < -0.5) return 'declining';
+            return 'stable';
+        }
+
+        function populateEnergyModal() {
+            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            const mapping = { '😫':-5, '😮‍💨':-4, '😐':0, '🙂':4, '😄':5 };
+            
+            const energyChart = document.getElementById('energyChart');
+            const energyTimes = document.getElementById('energyTimes');
+            const energyInsightText = document.getElementById('energyInsightText');
+            
+            // Get last 30 days of data
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const recentMoods = moodLog.filter(m => new Date(m.date) >= thirtyDaysAgo);
+            
+            if (recentMoods.length === 0) {
+                energyChart.innerHTML = '<p style="text-align: center; color: #718096;">Start logging moods to see your energy insights!</p>';
+                energyTimes.innerHTML = '';
+                energyInsightText.querySelector('.insight-text').textContent = 'Begin your mood tracking journey to discover your unique energy patterns.';
+                return;
+            }
+            
+            // Energy Distribution
+            const levels = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            recentMoods.forEach(m => {
+                const val = mapping[m.mood] || 0;
+                let level;
+                if (val < 0) level = 1;
+                else if (val <= 1.5) level = 2;
+                else if (val <= 3) level = 3;
+                else if (val <= 4.5) level = 4;
+                else level = 5;
+                levels[level]++;
+            });
+            
+            const total = recentMoods.length;
+            const energyData = [
+                { label: 'Great days', level: 5, count: levels[5], class: 'mood-good' },
+                { label: 'Good days', level: 4, count: levels[4], class: 'mood-okay' },
+                { label: 'Neutral days', level: 3, count: levels[3], class: 'mood-meh' },
+                { label: 'Tired days', level: 2, count: levels[2], class: 'mood-tired' },
+                { label: 'Stressed days', level: 1, count: levels[1], class: 'mood-stressed' }
+            ];
+            
+            energyChart.innerHTML = '';
+            energyData.forEach(item => {
+                const percentage = total > 0 ? Math.round((item.count / total) * 100) : 0;
+                const barDiv = document.createElement('div');
+                barDiv.className = 'energy-bar';
+                barDiv.innerHTML = `
+                    <div class="energy-bar-label">${item.label}</div>
+                    <div class="energy-bar-visual">
+                        <div class="energy-bar-fill ${item.class}" style="width: ${percentage}%"></div>
+                    </div>
+                    <div class="energy-bar-percentage">${percentage}%</div>
+                `;
+                energyChart.appendChild(barDiv);
+            });
+            
+            // Time analysis
+            generateTimeAnalysis(recentMoods, energyTimes);
+            
+            // Generate insight
+            const insight = generateEnergyInsight(energyData, recentMoods);
+            energyInsightText.querySelector('.insight-text').textContent = insight;
+        }
+        
+        function generateTimeAnalysis(moods, container) {
+            const timeRanges = {
+                'Morning': { start: 6, end: 12, moods: [] },
+                'Afternoon': { start: 12, end: 18, moods: [] },
+                'Evening': { start: 18, end: 24, moods: [] }
+            };
+            
+            moods.forEach(m => {
+                const hour = new Date(m.date).getHours();
+                if (hour >= 6 && hour < 12) timeRanges.Morning.moods.push(m);
+                else if (hour >= 12 && hour < 18) timeRanges.Afternoon.moods.push(m);
+                else if (hour >= 18 && hour < 24) timeRanges.Evening.moods.push(m);
+            });
+            
+            const mapping = { '😫':-5, '😮‍💨':-4, '😐':0, '🙂':4, '😄':5 };
+            
+            container.innerHTML = '';
+            Object.entries(timeRanges).forEach(([name, range]) => {
+                let avgEnergy = 0;
+                let label = 'No data';
+                let barsHtml = '';
+                
+                if (range.moods.length > 0) {
+                    avgEnergy = range.moods.reduce((s, m) => s + (mapping[m.mood] || 0), 0) / range.moods.length;
+                    const normalizedEnergy = Math.max(0, Math.min(5, (avgEnergy + 5) / 2)); // Convert -5 to +5 range to 0-5
+                    
+                    for (let i = 0; i < 5; i++) {
+                        const isActive = i < normalizedEnergy;
+                        const barClass = isActive ? getEnergyBarClass(normalizedEnergy) : '';
+                        barsHtml += `<div class="time-bar ${barClass}"></div>`;
+                    }
+                    
+                    if (normalizedEnergy >= 4) label = 'Strong';
+                    else if (normalizedEnergy >= 3) label = 'Good';
+                    else if (normalizedEnergy >= 2) label = 'Moderate';
+                    else if (normalizedEnergy >= 1) label = 'Low';
+                    else label = 'Drained';
+                } else {
+                    for (let i = 0; i < 5; i++) {
+                        barsHtml += '<div class="time-bar"></div>';
+                    }
+                }
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'time-period';
+                timeDiv.innerHTML = `
+                    <div class="time-period-name">${name}</div>
+                    <div class="time-period-bars">${barsHtml}</div>
+                    <div class="time-period-label">${label}</div>
+                `;
+                container.appendChild(timeDiv);
+            });
+        }
+        
+        function getEnergyBarClass(energy) {
+            if (energy >= 4.5) return 'mood-good';
+            if (energy >= 3.5) return 'mood-okay';
+            if (energy >= 2.5) return 'mood-meh';
+            if (energy >= 1.5) return 'mood-tired';
+            return 'mood-stressed';
+        }
+        
+        function generateEnergyInsight(energyData, moods) {
+            const total = moods.length;
+            const positiveRatio = (energyData[0].count + energyData[1].count) / total;
+            const negativeRatio = (energyData[3].count + energyData[4].count) / total;
+            
+            if (positiveRatio >= 0.6) {
+                return "Your energy patterns show remarkable resilience. You're navigating life with notable strength and finding ways to maintain positive energy even during challenges.";
+            } else if (negativeRatio >= 0.6) {
+                return "You've been carrying a heavy load lately. Your awareness of these patterns is the first step toward lighter days. Consider what small changes might support your energy.";
+            } else {
+                return "Your energy shows the natural rhythm of human experience - a mix of high and low moments. You're doing well managing life's ups and downs.";
+            }
+        }
+
         function initUnifiedModals() {
             document.querySelectorAll('.unified-modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
@@ -2737,6 +3098,7 @@ function hideFloatingTimer() {
 
         // Initialize page
         window.onload = () => {
+            DOM.init(); // Initialize cached DOM elements
             checkForNewDay();
             loadQuote();
             loadTasks();
