@@ -131,7 +131,7 @@
         .main-content {
             display: grid;
             gap: 2rem;
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr;
         }
 
         @media (max-width: 768px) {
@@ -700,6 +700,9 @@
         /* Mood Gauge Styles */
         .mood-gauge {
             margin-top: 0.5rem;
+            max-width: 250px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .gauge-bar {
@@ -1885,25 +1888,6 @@ html {
                 <div id="taskInfoCard" class="task-info-card"></div>
             </div>
 
-            <div class="card" id="moodGaugeCard">
-                <h2>Mood Fuel Gauge 🚦</h2>
-                <div class="mood-gauge">
-                    <div class="gauge-bar">
-                        <div class="gauge-needle" id="moodGaugeNeedle">
-                            <div class="gauge-needle-line"></div>
-                            <div class="needle-label" id="moodGaugeLabel"></div>
-                        </div>
-                    </div>
-                    <div class="gauge-labels">
-                        <span>😩</span>
-                        <span>😐</span>
-                        <span>🙂</span>
-                        <span>😄</span>
-                    </div>
-                    <button id="openPastMoodsBtn" class="link-button" style="margin-top:0.5rem;">📅 View Past Moods</button>
-                </div>
-            </div>
-
             <div class="card">
                 <h2>How are you feeling?</h2>
                 <div class="mood-container" id="mainMoodContainer">
@@ -1949,7 +1933,26 @@ html {
                 </div>
             </div>
 
-            <div class="card full-width" id="timerSection">
+            <div class="card" id="moodGaugeCard">
+                <h2>Mood Fuel Gauge 🚦</h2>
+                <div class="mood-gauge">
+                    <div class="gauge-bar">
+                        <div class="gauge-needle" id="moodGaugeNeedle">
+                            <div class="gauge-needle-line"></div>
+                            <div class="needle-label" id="moodGaugeLabel"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-labels">
+                        <span>😩</span>
+                        <span>😐</span>
+                        <span>🙂</span>
+                        <span>😄</span>
+                    </div>
+                    <button id="openPastMoodsBtn" class="link-button" style="margin-top:0.5rem;">📅 View Past Moods</button>
+                </div>
+            </div>
+
+            <div class="card" id="timerSection">
                 <h2>Focus Timer</h2>
                 <div id="floatingMsg" class="floating-msg" style="display:none;">Active timer is running elsewhere (see top-right)</div>
                 <div id="minimizedTaskTimer" class="minimized-task-timer">
