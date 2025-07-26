@@ -131,7 +131,7 @@
         .main-content {
             display: grid;
             gap: 2rem;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
         }
 
         @media (max-width: 768px) {
@@ -695,6 +695,48 @@
         /* Full width card for timer */
         .full-width {
             grid-column: 1 / -1;
+        }
+
+        /* Mood Gauge Styles */
+        .mood-gauge {
+            margin-top: 0.5rem;
+        }
+
+        .gauge-bar {
+            position: relative;
+            width: 100%;
+            height: 20px;
+            border-radius: 10px;
+            background: linear-gradient(to right, #f56565, #ecc94b, #48bb78);
+        }
+
+        .gauge-needle {
+            position: absolute;
+            top: -4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .gauge-needle-line {
+            width: 2px;
+            height: 28px;
+            background: #2d3748;
+        }
+
+        .needle-label {
+            margin-top: 2px;
+            font-size: 0.75rem;
+            transform: translateX(-50%);
+            color: #4a5568;
+        }
+
+        .gauge-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.25rem;
+            margin-top: 0.25rem;
         }
 
         /* Notes Section Styles */
@@ -1843,6 +1885,25 @@ html {
                 <div id="taskInfoCard" class="task-info-card"></div>
             </div>
 
+            <div class="card" id="moodGaugeCard">
+                <h2>Mood Fuel Gauge 🚦</h2>
+                <div class="mood-gauge">
+                    <div class="gauge-bar">
+                        <div class="gauge-needle" id="moodGaugeNeedle">
+                            <div class="gauge-needle-line"></div>
+                            <div class="needle-label" id="moodGaugeLabel"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-labels">
+                        <span>😩</span>
+                        <span>😐</span>
+                        <span>🙂</span>
+                        <span>😄</span>
+                    </div>
+                    <button id="openPastMoodsBtn" class="link-button" style="margin-top:0.5rem;">📅 View Past Moods</button>
+                </div>
+            </div>
+
             <div class="card">
                 <h2>How are you feeling?</h2>
                 <div class="mood-container" id="mainMoodContainer">
@@ -2152,6 +2213,15 @@ html {
         <div class="task-timer-title">Break Time ☕️</div>
         <div class="task-timer-time" id="breakTimerTime"></div>
         <div class="task-progress"><div class="task-progress-bar" id="breakProgressBar"></div></div>
+    </div>
+
+    <!-- Past Moods Modal -->
+    <div class="modal unified-modal" id="pastMoodsModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closePastMoodsModal()">❌</button>
+            <h3>Past Moods</h3>
+            <div id="pastMoodsContent" class="mood-timeline"></div>
+        </div>
     </div>
 
     <script>
@@ -3070,6 +3140,10 @@ function openSubtaskModal(tIndex) {
         const moodHistory = document.getElementById('moodHistory');
         const moodTimeline = document.getElementById('moodTimeline');
         const toggleMoodLogBtn = document.getElementById('toggleMoodLog');
+        const moodGaugeNeedle = document.getElementById('moodGaugeNeedle');
+        const moodGaugeLabel = document.getElementById('moodGaugeLabel');
+        const pastMoodsContent = document.getElementById('pastMoodsContent');
+        const openPastMoodsBtn = document.getElementById('openPastMoodsBtn');
         let showAllMoodLog = false;
         let autoPausedByMood = false;
 
@@ -3086,6 +3160,7 @@ function openSubtaskModal(tIndex) {
             }
 
             updateMoodHistory();
+            updateMoodGauge();
         }
 
         function formatTime(dateStr) {
@@ -3146,6 +3221,22 @@ function openSubtaskModal(tIndex) {
             toggleMoodLogBtn.textContent = showAllMoodLog ? 'Hide' : 'View all';
         }
 
+        function updateMoodGauge() {
+            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            const todayStr = new Date().toISOString().split('T')[0];
+            const mapping = { '😩':1, '😫':1, '😐':2, '😮‍💨':2, '🙂':3, '😄':4 };
+            const todays = moodLog.filter(m => m.date.startsWith(todayStr));
+            if (!todays.length) {
+                moodGaugeNeedle.style.left = '0%';
+                moodGaugeLabel.textContent = 'Avg: -';
+                return;
+            }
+            const avg = todays.reduce((s,m) => s + (mapping[m.mood]||2), 0) / todays.length;
+            const percent = ((avg - 1) / 3) * 100;
+            moodGaugeNeedle.style.left = `${percent}%`;
+            moodGaugeLabel.textContent = `Avg: ${avg.toFixed(1)}`;
+        }
+
         moodEmojis.forEach(emoji => {
             emoji.addEventListener('click', function() {
                 moodEmojis.forEach(e => e.classList.remove('selected'));
@@ -3183,6 +3274,7 @@ function openSubtaskModal(tIndex) {
 
                     localStorage.setItem('moodLog', JSON.stringify(moodLog));
                     updateMoodHistory();
+                    updateMoodGauge();
                     pendingMoodType = null;
                 };
 
@@ -3203,6 +3295,8 @@ function openSubtaskModal(tIndex) {
             showAllMoodLog = !showAllMoodLog;
             updateMoodHistory();
         });
+
+        openPastMoodsBtn.addEventListener('click', openPastMoodsModal);
 
         const trendContainer = document.getElementById('moodTrends');
         const trendTooltip = document.getElementById('trendTooltip');
@@ -4838,6 +4932,26 @@ function openSubtaskModal(tIndex) {
             });
         }
 
+        function openPastMoodsModal() {
+            const moodLog = JSON.parse(localStorage.getItem('moodLog')) || [];
+            pastMoodsContent.innerHTML = '';
+            if (moodLog.length === 0) {
+                pastMoodsContent.textContent = 'No moods logged yet';
+            } else {
+                moodLog.slice().reverse().forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'mood-timeline-entry';
+                    div.textContent = `${m.mood} – ${formatTime(m.date)}`;
+                    pastMoodsContent.appendChild(div);
+                });
+            }
+            document.getElementById('pastMoodsModal').classList.add('active');
+        }
+
+        function closePastMoodsModal() {
+            document.getElementById('pastMoodsModal').classList.remove('active');
+        }
+
         function initUnifiedModals() {
             document.querySelectorAll('.unified-modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
@@ -4857,6 +4971,7 @@ function openSubtaskModal(tIndex) {
             loadTemplates();
             loadDoneTasks();
             loadTodaysMood();
+            updateMoodGauge();
             updateTimerDisplay();
             updateFocusTimerVisibility();
             loadNotes();
