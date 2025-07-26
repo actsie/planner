@@ -37,15 +37,15 @@
                     <div class="templates-actions">
                         <button id="addTemplateBtn">New Template</button>
                     </div>
-                    <input type="text" id="templateFilter" class="input-filter">
+                    <input type="text" id="templateFilter" placeholder="Filter templates" class="template-filter">
                     <ul id="templateList"></ul>
-                    <button id="addToTodayBtn" class="add-to-today-btn hidden mt-05">
+                    <button id="addToTodayBtn" class="add-to-today-btn add-to-today-btn-hidden">
                         <span class="circle" aria-hidden="true">
                             <span class="icon arrow"></span>
                         </span>
                         <span class="button-text">Add Task</span>
                     </button>
-                    <div id="templateToast" class="template-toast floating-msg hidden mt-05"></div>
+                    <div id="templateToast" class="template-toast floating-msg template-toast-hidden"></div>
                 </div>
                 <div id="doneTab" class="tab-content">
                     <ul id="doneTaskList"></ul>
@@ -62,7 +62,10 @@
             </div>
 
             <div class="card">
-                <h2>How are you feeling?</h2>
+                <div class="card-header">
+                    <h2>How are you feeling?</h2>
+                    <button class="mood-help-btn" id="moodHelpBtn" title="Why track your mood?">?</button>
+                </div>
                 <div class="mood-container" id="mainMoodContainer">
                     <div>
                         <div class="emoji" data-mood="😐">😐</div>
@@ -85,10 +88,29 @@
                         <div class="mood-label">stressed</div>
                     </div>
                 </div>
+                
+                <!-- Integrated Battery Mood Gauge -->
+                <div class="mood-battery">
+                    <div class="today-energy-label" id="todayEnergyLabel">Today's energy</div>
+                    <div class="battery-container">
+                        <div class="battery-gauge">
+                            <div class="battery-body">
+                                <div class="battery-bar" data-bar="1"></div>
+                                <div class="battery-bar" data-bar="2"></div>
+                                <div class="battery-bar" data-bar="3"></div>
+                                <div class="battery-bar" data-bar="4"></div>
+                                <div class="battery-bar" data-bar="5"></div>
+                            </div>
+                            <div class="battery-tip"></div>
+                        </div>
+                    </div>
+                    <div class="mood-context-message" id="moodContextMessage">Select your mood to see your energy</div>
+                </div>
+                
                 <div class="mood-history" id="moodHistory"></div>
                 <div class="mood-timeline" id="moodTimeline"></div>
                 <div class="mood-actions">
-                    <button id="toggleMoodLog" class="link-button hidden">View all</button>
+                    <button id="openPastMoodsBtn" class="link-button">View Past Moods</button>
                     <div class="trend-links-container">
                         <div class="trend-wrapper">
                             <span id="toggleTrendView" class="trend-link">View Trends</span>
@@ -106,28 +128,10 @@
                 </div>
             </div>
 
-            <div class="card" id="moodGaugeCard">
-                <h2>Mood Fuel Gauge 🚦</h2>
-                <div class="mood-gauge">
-                    <div class="gauge-bar">
-                        <div class="gauge-needle" id="moodGaugeNeedle">
-                            <div class="gauge-needle-line"></div>
-                            <div class="needle-label" id="moodGaugeLabel"></div>
-                        </div>
-                    </div>
-                    <div class="gauge-labels">
-                        <span>😩</span>
-                        <span>😐</span>
-                        <span>🙂</span>
-                        <span>😄</span>
-                    </div>
-                    <button id="openPastMoodsBtn" class="link-button mt-05">📅 View Past Moods</button>
-                </div>
-            </div>
 
             <div class="card" id="timerSection">
                 <h2>Focus Timer</h2>
-                <div id="floatingMsg" class="floating-msg hidden">Active timer is running elsewhere (see top-right)</div>
+                <div id="floatingMsg" class="floating-msg floating-msg-hidden">Active timer is running elsewhere (see top-right)</div>
                 <div id="minimizedTaskTimer" class="minimized-task-timer">
                     <div>
                         <span id="minTaskTitle"></span>
@@ -136,7 +140,7 @@
                     <div class="task-progress"><div class="task-progress-bar" id="minTaskProgressBar"></div></div>
                     <div class="timer-controls">
                         <button onclick="pauseTaskTimer()" id="minPauseBtn">⏸️</button>
-                        <button onclick="resumeTaskTimer()" id="minResumeBtn" class="hidden">▶️</button>
+                        <button onclick="resumeTaskTimer()" id="minResumeBtn" class="timer-resume-btn-hidden">▶️</button>
                         <button onclick="completeCurrentTask()" title="Complete">✓</button>
                         <button onclick="cancelTaskTimer()">✖️</button>
                         <button onclick="addMoreTimeDuringRun()">➕</button>
@@ -145,7 +149,7 @@
                 </div>
                 <div class="timer-display" id="timerArea">
                     <span id="timerDisplay">25:00</span>
-                    <input id="timerInput" class="timer-input hidden" type="number" min="1" value="25">
+                    <input id="timerInput" class="timer-input timer-input-hidden" type="number" min="1" value="25">
                 </div>
                 <div class="timer-controls" id="focusTimerControls">
                     <button class="timer-btn" id="startTimer">Start</button>
@@ -164,10 +168,10 @@
                     <div class="notes-list" id="notesList"></div>
                 </div>
                 <div class="notes-main">
-                    <div id="noteEditor" class="note-editor hidden">
+                    <div id="noteEditor" class="note-editor note-editor-hidden">
                         <input type="text" class="note-title-input" id="noteTitleInput" placeholder="Note Title" />
                         <div class="note-content" id="noteContent" contenteditable="true" data-placeholder="Start writing your thoughts..."></div>
-                        <div id="formatToolbar" class="format-toolbar hidden">
+                        <div id="formatToolbar" class="format-toolbar format-toolbar-hidden">
                             <button data-tag="strong">B</button>
                             <button data-tag="em">I</button>
                             <button data-tag="u">U</button>
@@ -206,8 +210,8 @@
         <div class="modal-content">
             <button class="modal-close" onclick="closeAddTimeModal()">❌</button>
             <h3>Add more time</h3>
-            <input type="number" id="addTimeInput" placeholder="Add how many minutes?" value="5" min="1" class="input-block">
-            <div class="modal-actions" class="mt-15">
+            <input type="number" id="addTimeInput" placeholder="Add how many minutes?" value="5" min="1" class="modal-input">
+            <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeAddTimeModal()">Cancel</button>
                 <button class="modal-btn primary" id="confirmAddTime">Add</button>
             </div>
@@ -219,9 +223,9 @@
         <div class="modal-content">
             <button class="modal-close" onclick="closeBreakTaskModal()">❌</button>
             <h3>🧩 Broken Down Tasks</h3>
-            <p class="floating-msg">Add small sub-tasks so you know exactly where to pick up when you’re back.</p>
-            <input type="text" id="breakTaskInput" placeholder="e.g., write intro paragraph" class="input-block">
-            <div class="modal-actions" class="mt-15">
+            <p class="floating-msg">Add small sub-tasks so you know exactly where to pick up when you're back.</p>
+            <input type="text" id="breakTaskInput" placeholder="e.g., write intro paragraph" class="modal-input">
+            <div class="modal-actions">
                 <button class="modal-btn primary" onclick="saveBreakTask()">Add</button>
                 <button class="modal-btn secondary" onclick="closeBreakTaskModal()">Cancel</button>
             </div>
@@ -234,9 +238,9 @@
             <button class="modal-close" onclick="closeSubtaskModal()">❌</button>
             <h3 id="subtaskModalTitle">Add Subtask</h3>
             <p class="floating-msg">Break this task into smaller steps</p>
-            <div id="subtaskInputs" class="mt-1"></div>
+            <div id="subtaskInputs"></div>
             <button id="addSubtaskRowBtn" class="add-break-item">➕ Add subtask</button>
-            <div class="modal-actions" class="mt-15">
+            <div class="modal-actions">
                 <button class="modal-btn primary" onclick="saveSubtasks()">Save</button>
                 <button class="modal-btn secondary" onclick="closeSubtaskModal()">Cancel</button>
             </div>
@@ -248,10 +252,10 @@
         <div class="modal-content">
             <button class="modal-close" onclick="closeTemplateModal()">❌</button>
             <h3 id="templateModalTitle">New Template</h3>
-            <input type="text" id="templateNameInput" placeholder="Template name" class="input-block">
-            <div id="templateSubtasks" class="mt-1"></div>
+            <input type="text" id="templateNameInput" placeholder="Template name" class="modal-input">
+            <div id="templateSubtasks"></div>
             <button id="addSubtaskBtn" class="add-break-item">➕ Add subtask</button>
-            <div class="modal-actions" class="mt-15">
+            <div class="modal-actions">
                 <button class="modal-btn primary" onclick="saveTemplate()">Save</button>
                 <button class="modal-btn secondary" onclick="closeTemplateModal()">Cancel</button>
             </div>
@@ -263,8 +267,8 @@
         <div class="modal-content">
             <button class="modal-close" onclick="closeDeleteTemplateModal()">❌</button>
             <h3>Delete this template?</h3>
-            <p class="mt-05">This cannot be undone.</p>
-            <div class="modal-actions" class="mt-15">
+            <p>This cannot be undone.</p>
+            <div class="modal-actions">
                 <button class="modal-btn primary" onclick="confirmDeleteTemplate()">Delete</button>
                 <button class="modal-btn secondary" onclick="closeDeleteTemplateModal()">Cancel</button>
             </div>
@@ -299,8 +303,8 @@
             <button class="modal-close" onclick="closeMoodReasonModal()">❌</button>
             <h3 id="moodReasonHeader">Want to share why you felt this way?</h3>
             <input type="text" id="moodReasonInput" class="modal-input" placeholder="Optional reason">
-            <div id="breakSuggestion" class="hidden">
-                <p class="mb-05">💬 Sounds like it might be time for a break. Want to try breaking your task down first?</p>
+            <div id="breakSuggestion">
+                <p>💬 Sounds like it might be time for a break. Want to try breaking your task down first?</p>
                 <div id="breakSteps" class="break-steps-container">
                     <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="e.g., write intro paragraph"></div>
                     <div class="break-item"><input type="checkbox"><input type="text" class="break-input" placeholder="e.g., add tweet image"></div>
@@ -309,13 +313,13 @@
                 <button id="addBreakStep" class="add-break-item">➕ Add</button>
                 <div class="break-duration-section">
                     <span class="break-duration-text">Break time:</span>
-                    <input type="number" id="breakDuration" value="15" min="1" class="width-60">
+                    <input type="number" id="breakDuration" value="15" min="1">
                     <span>min</span>
                     <button class="modal-btn primary" id="startBreakBtn">Start Break</button>
                 </div>
                 <div id="breakError" class="break-error"></div>
             </div>
-            <div class="modal-actions" class="mt-15">
+            <div class="modal-actions">
                 <button class="modal-btn primary" id="saveMoodReason" title="Save without starting break">Save Tasks</button>
                 <button class="modal-btn secondary" id="skipMoodReason" title="Skip without saving anything">Skip</button>
             </div>
@@ -327,8 +331,8 @@
         <div class="modal-content">
             <button class="modal-close" onclick="closeFocusTaskModal()">❌</button>
             <h3>Name this focus session</h3>
-            <input type="text" id="focusTaskName" placeholder="Task name" class="input-block">
-            <div class="modal-actions" class="mt-15">
+            <input type="text" id="focusTaskName" placeholder="Task name" class="modal-input">
+            <div class="modal-actions">
                 <button class="modal-btn primary" id="startFocusTask">Start</button>
                 <button class="modal-btn secondary" onclick="closeFocusTaskModal()">Cancel</button>
             </div>
@@ -362,33 +366,93 @@
                     <div class="mood-label">stressed</div>
                 </div>
             </div>
-                <input type="text" id="moodPromptReason" placeholder="What made it difficult?" class="input-block hidden">
-            <div class="modal-actions" class="mt-15">
-                <button class="modal-btn primary" id="submitMoodPrompt" class="hidden">Submit</button>
+                <input type="text" id="moodPromptReason" placeholder="What made it difficult?" class="modal-input mood-prompt-reason-hidden">
+            <div class="modal-actions">
+                <button class="modal-btn primary" id="submitMoodPrompt" class="submit-mood-prompt-hidden">Submit</button>
             </div>
         </div>
     </div>
 
     <!-- Task Timer Display -->
-    <div class="task-timer-display" id="taskTimerDisplay" class="hidden">
+    <div class="task-timer-display task-timer-display-hidden" id="taskTimerDisplay">
         <button class="minimize-btn" onclick="minimizeTaskTimer()">▾</button>
         <div class="task-timer-title" id="taskTimerTitle"></div>
         <div class="task-timer-time" id="taskTimerTime"></div>
         <div class="task-progress"><div class="task-progress-bar" id="taskProgressBar"></div></div>
         <div class="timer-controls">
             <button onclick="pauseTaskTimer()" id="pauseTaskBtn">⏸</button>
-            <button onclick="resumeTaskTimer()" id="resumeTaskBtn" class="hidden">▶️</button>
+            <button onclick="resumeTaskTimer()" id="resumeTaskBtn" class="timer-resume-btn-hidden">▶️</button>
             <button onclick="completeCurrentTask()" title="Mark as complete">✓</button>
             <button onclick="addMoreTimeDuringRun()">➕</button>
             <button onclick="cancelTaskTimer()">✖️</button>
         </div>
     </div>
 
-    <div class="task-timer-display" id="breakTimerDisplay" class="hidden bg-break">
+    <div class="task-timer-display break-timer-display-hidden" id="breakTimerDisplay">
         <button class="minimize-btn" onclick="cancelBreakTimer()">✖️</button>
         <div class="task-timer-title">Break Time ☕️</div>
         <div class="task-timer-time" id="breakTimerTime"></div>
         <div class="task-progress"><div class="task-progress-bar" id="breakProgressBar"></div></div>
+    </div>
+
+    <!-- Mood Help Modal -->
+    <div class="modal unified-modal" id="moodHelpModal">
+        <div class="modal-content mood-help-content">
+            <button class="modal-close" onclick="closeMoodHelpModal()">❌</button>
+            <h3>Why track your mood?</h3>
+            <div class="mood-help-text">
+                <p>It might seem cheesy, but it's often the only reason you realize why the day felt hard—or how you got through it.</p>
+                
+                <div class="mood-help-visual">
+                    <div class="help-battery-example">
+                        <div class="help-battery-label">Your energy today:</div>
+                        <div class="help-battery-gauge">
+                            <div class="help-battery-body">
+                                <div class="help-battery-bar empty"></div>
+                                <div class="help-battery-bar empty"></div>
+                                <div class="help-battery-bar empty"></div>
+                                <div class="help-battery-bar filled mood-tired"></div>
+                                <div class="help-battery-bar filled mood-tired"></div>
+                            </div>
+                            <div class="help-battery-tip"></div>
+                        </div>
+                        <div class="help-battery-status">Tired (2/5) - Maybe take it easy today</div>
+                    </div>
+                </div>
+
+                <div class="mood-help-benefits">
+                    <div class="benefit-item">
+                        <strong>It connects the dots.</strong><br>
+                        What looks like laziness might've been quiet panic. Mood check-ins help you catch what's really going on, before the self-blame sets in.
+                    </div>
+                    
+                    <div class="benefit-item">
+                        <strong>It softens the story.</strong><br>
+                        You start to notice: "Oh, that was just a heavy day." Not "something's wrong with me."
+                    </div>
+                    
+                    <div class="benefit-item">
+                        <strong>It reveals odd little patterns.</strong><br>
+                        Maybe Tuesdays always drain you. Maybe things go smoother after yelling into a pillow and drinking orange juice. (Relatable.)
+                    </div>
+                    
+                    <div class="benefit-item">
+                        <strong>It makes planning less fake.</strong><br>
+                        Some tasks seem small but feel huge. Tracking helps you stop pretending they're easy—and plan around their real weight.
+                    </div>
+                    
+                    <div class="benefit-item">
+                        <strong>It helps you feel what you're actually feeling.</strong><br>
+                        When executive dysfunction kicks in, everything can feel foggy or numb—like your emotions are on mute. A quick mood check-in helps you tune back in, so you can name what's going on instead of just feeling stuck.
+                    </div>
+                    
+                    <div class="benefit-item">
+                        <strong>And it counts.</strong><br>
+                        Even when you can't do much else—this counts. Five seconds to check in might be what unlocks the next five minutes.
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Past Moods Modal -->
@@ -397,6 +461,46 @@
             <button class="modal-close" onclick="closePastMoodsModal()">❌</button>
             <h3>Past Moods</h3>
             <div id="pastMoodsContent" class="mood-timeline"></div>
+        </div>
+    </div>
+
+    <!-- Trends Modal -->
+    <div class="modal unified-modal" id="trendsModal">
+        <div class="modal-content trends-modal-content">
+            <button class="modal-close" onclick="closeTrendsModal()">❌</button>
+            <h3>📈 Your Mood Journey</h3>
+            <div class="trends-content">
+                <div class="trends-period">
+                    <h4>This Week</h4>
+                    <div id="weeklyTrends" class="weekly-trends"></div>
+                </div>
+                <div class="trends-insight" id="trendsInsight">
+                    <div class="insight-icon">💡</div>
+                    <div class="insight-text">Analyzing your mood patterns...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Energy Insights Modal -->
+    <div class="modal unified-modal" id="energyModal">
+        <div class="modal-content energy-modal-content">
+            <button class="modal-close" onclick="closeEnergyModal()">❌</button>
+            <h3>⚡ Your Energy Insights</h3>
+            <div class="energy-content">
+                <div class="energy-breakdown">
+                    <h4>🔋 Energy Distribution</h4>
+                    <div id="energyChart" class="energy-chart"></div>
+                </div>
+                <div class="energy-times">
+                    <h4>⏰ Peak Energy Times</h4>
+                    <div id="energyTimes" class="energy-times-chart"></div>
+                </div>
+                <div class="energy-insight" id="energyInsightText">
+                    <div class="insight-icon">💭</div>
+                    <div class="insight-text">Discovering your energy patterns...</div>
+                </div>
+            </div>
         </div>
     </div>
 
